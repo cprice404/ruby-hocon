@@ -31,15 +31,31 @@ end
 
 
 describe "Config Parser" do
-   context "invalid_conf_throws" do
-     TestUtils.whitespace_variations(TestUtils::InvalidJsonInvalidConf, false).each do |invalid|
-       it "should raise an error for invalid config string '#{invalid.test}'" do
-         TestUtils.add_offending_json_to_exception("config", invalid.test) {
-           TestUtils.intercept(Hocon::ConfigError) {
-               parse(invalid.test)
-           }
-         }
-       end
-     end
-   end
+  context "invalid_conf_throws" do
+    TestUtils.whitespace_variations(TestUtils::InvalidConf, false).each do |invalid|
+      it "should raise an error for invalid config string '#{invalid.test}'" do
+        TestUtils.add_offending_json_to_exception("config", invalid.test) {
+          TestUtils.intercept(Hocon::ConfigError) {
+            parse(invalid.test)
+          }
+        }
+      end
+    end
+  end
+
+  context "valid_conf_works" do
+    TestUtils.whitespace_variations(TestUtils::ValidConf, true).each do |valid|
+      it "should successfully parse config string '#{valid.test}'" do
+        our_ast = TestUtils.add_offending_json_to_exception("config-conf", valid.test) {
+          parse(valid.test)
+        }
+        # let's also check round-trip rendering
+        rendered = our_ast.render
+        reparsed = TestUtils.add_offending_json_to_exception("config-conf-reparsed", rendered) {
+          parse(rendered)
+        }
+        expect(our_ast).to eq(reparsed)
+      end
+    end
+  end
 end
