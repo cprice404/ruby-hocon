@@ -189,59 +189,59 @@ module TestUtils
   ]
 
   ValidConfInvalidJson = [
-      # ParseTest.from_s(""), # empty document
-      # ParseTest.from_s(" "), # empty document single space
-      # ParseTest.from_s("\n"), # empty document single newline
-      # ParseTest.from_s(" \n \n   \n\n\n"), # complicated empty document
-      # ParseTest.from_s("# foo"), # just a comment
-      # ParseTest.from_s("# bar\n"), # just a comment with a newline
-      # ParseTest.from_s("# foo\n//bar"), # comment then another with no newline
-      # ParseTest.from_s(%q|{ "foo" = 42 }|), # equals rather than colon
-      # ParseTest.from_s(%q|{ foo { "bar" : 42 } }|), # omit the colon for object value
-      # ParseTest.from_s(%q|{ foo baz { "bar" : 42 } }|), # omit the colon with unquoted key with spaces
-      # ParseTest.from_s(%q| "foo" : 42 |), # omit braces on root object
-      # ParseTest.from_s(%q|{ "foo" : bar }|), # no quotes on value
-      # ParseTest.from_s(%q|{ "foo" : null bar 42 baz true 3.14 "hi" }|), # bunch of values to concat into a string
-      # ParseTest.from_s("{ foo : \"bar\" }"), # no quotes on key
-      # ParseTest.from_s("{ foo : bar }"), # no quotes on key or value
-      # ParseTest.from_s("{ foo.bar : bar }"), # path expression in key
-      # ParseTest.from_s("{ foo.\"hello world\".baz : bar }"), # partly-quoted path expression in key
-      # ParseTest.from_s("{ foo.bar \n : bar }"), # newline after path expression in key
-      # ParseTest.from_s("{ foo  bar : bar }"), # whitespace in the key
-      # ParseTest.from_s("{ true : bar }"), # key is a non-string token
-      # ParseTest.from_pair(true, %q|{ "foo" : "bar", "foo" : "bar2" }|), # dup keys - lift just returns both
-      # ParseTest.from_pair(true, "[ 1, 2, 3, ]"), # single trailing comma (lift fails to throw)
-      # ParseTest.from_pair(true, "[1,2,3  , ]"), # single trailing comma with whitespace
-      # ParseTest.from_pair(true, "[1,2,3\n\n , \n]"), # single trailing comma with newlines
-      # ParseTest.from_pair(true, "[1,]"), # single trailing comma with one-element array
-      # ParseTest.from_pair(true, "{ \"foo\" : 10, }"), # extra trailing comma (lift fails to throw)
-      # ParseTest.from_pair(true, "{ \"a\" : \"b\", }"), # single trailing comma in object
-      # ParseTest.from_s("{ a : b, }"), # single trailing comma in object (unquoted strings)
-      # ParseTest.from_s("{ a : b  \n  , \n }"), # single trailing comma in object with newlines
-      # ParseTest.from_s("a : b, c : d,"), # single trailing comma in object with no root braces
-      # ParseTest.from_s("{ a : b\nc : d }"), # skip comma if there's a newline
-      # ParseTest.from_s("a : b\nc : d"), # skip comma if there's a newline and no root braces
-      # ParseTest.from_s("a : b\nc : d,"), # skip one comma but still have one at the end
-      # ParseTest.from_s("[ foo ]"), # not a known token in JSON
-      # ParseTest.from_s("[ t ]"), # start of "true" but ends wrong in JSON
-      # ParseTest.from_s("[ tx ]"),
-      # ParseTest.from_s("[ tr ]"),
-      # ParseTest.from_s("[ trx ]"),
-      # ParseTest.from_s("[ tru ]"),
-      # ParseTest.from_s("[ trux ]"),
-      # ParseTest.from_s("[ truex ]"),
-      # ParseTest.from_s("[ 10x ]"), # number token with trailing junk
-      # ParseTest.from_s("[ / ]"), # unquoted string "slash"
-      # ParseTest.from_s("{ include \"foo\" }"), # valid include
-      # ParseTest.from_s("{ include\n\"foo\" }"), # include with just a newline separating from string
-      # ParseTest.from_s("{ include\"foo\" }"), # include with no whitespace after it
-      # ParseTest.from_s("[ include ]"), # include can be a string value in an array
-      # ParseTest.from_s("{ foo : include }"), # include can be a field value also
-      # ParseTest.from_s("{ include \"foo\", \"a\" : \"b\" }"), # valid include followed by comma and field
-      # ParseTest.from_s("{ foo include : 42 }"), # valid to have a key not starting with include
-      ParseTest.from_s("[ ${foo} ]"),
-      # ParseTest.from_s("[ ${?foo} ]"),
-      # ParseTest.from_s("[ ${\"foo\"} ]"),
+#       ParseTest.from_s(""), # empty document
+#       ParseTest.from_s(" "), # empty document single space
+#       ParseTest.from_s("\n"), # empty document single newline
+#       ParseTest.from_s(" \n \n   \n\n\n"), # complicated empty document
+#       ParseTest.from_s("# foo"), # just a comment
+#       ParseTest.from_s("# bar\n"), # just a comment with a newline
+#       ParseTest.from_s("# foo\n//bar"), # comment then another with no newline
+#       ParseTest.from_s(%q|{ "foo" = 42 }|), # equals rather than colon
+#       ParseTest.from_s(%q|{ foo { "bar" : 42 } }|), # omit the colon for object value
+#       ParseTest.from_s(%q|{ foo baz { "bar" : 42 } }|), # omit the colon with unquoted key with spaces
+#       ParseTest.from_s(%q| "foo" : 42 |), # omit braces on root object
+#       ParseTest.from_s(%q|{ "foo" : bar }|), # no quotes on value
+#       ParseTest.from_s(%q|{ "foo" : null bar 42 baz true 3.14 "hi" }|), # bunch of values to concat into a string
+#       ParseTest.from_s("{ foo : \"bar\" }"), # no quotes on key
+#       ParseTest.from_s("{ foo : bar }"), # no quotes on key or value
+#       ParseTest.from_s("{ foo.bar : bar }"), # path expression in key
+#       ParseTest.from_s("{ foo.\"hello world\".baz : bar }"), # partly-quoted path expression in key
+#       ParseTest.from_s("{ foo.bar \n : bar }"), # newline after path expression in key
+#       ParseTest.from_s("{ foo  bar : bar }"), # whitespace in the key
+#       ParseTest.from_s("{ true : bar }"), # key is a non-string token
+#       ParseTest.from_pair(true, %q|{ "foo" : "bar", "foo" : "bar2" }|), # dup keys - lift just returns both
+#       ParseTest.from_pair(true, "[ 1, 2, 3, ]"), # single trailing comma (lift fails to throw)
+#       ParseTest.from_pair(true, "[1,2,3  , ]"), # single trailing comma with whitespace
+#       ParseTest.from_pair(true, "[1,2,3\n\n , \n]"), # single trailing comma with newlines
+#       ParseTest.from_pair(true, "[1,]"), # single trailing comma with one-element array
+#       ParseTest.from_pair(true, "{ \"foo\" : 10, }"), # extra trailing comma (lift fails to throw)
+#       ParseTest.from_pair(true, "{ \"a\" : \"b\", }"), # single trailing comma in object
+#       ParseTest.from_s("{ a : b, }"), # single trailing comma in object (unquoted strings)
+#       ParseTest.from_s("{ a : b  \n  , \n }"), # single trailing comma in object with newlines
+#       ParseTest.from_s("a : b, c : d,"), # single trailing comma in object with no root braces
+#       ParseTest.from_s("{ a : b\nc : d }"), # skip comma if there's a newline
+#       ParseTest.from_s("a : b\nc : d"), # skip comma if there's a newline and no root braces
+#       ParseTest.from_s("a : b\nc : d,"), # skip one comma but still have one at the end
+#       ParseTest.from_s("[ foo ]"), # not a known token in JSON
+#       ParseTest.from_s("[ t ]"), # start of "true" but ends wrong in JSON
+#       ParseTest.from_s("[ tx ]"),
+#       ParseTest.from_s("[ tr ]"),
+#       ParseTest.from_s("[ trx ]"),
+#       ParseTest.from_s("[ tru ]"),
+#       ParseTest.from_s("[ trux ]"),
+#       ParseTest.from_s("[ truex ]"),
+#       ParseTest.from_s("[ 10x ]"), # number token with trailing junk
+#       ParseTest.from_s("[ / ]"), # unquoted string "slash"
+#       ParseTest.from_s("{ include \"foo\" }"), # valid include
+#       ParseTest.from_s("{ include\n\"foo\" }"), # include with just a newline separating from string
+#       ParseTest.from_s("{ include\"foo\" }"), # include with no whitespace after it
+#       ParseTest.from_s("[ include ]"), # include can be a string value in an array
+#       ParseTest.from_s("{ foo : include }"), # include can be a field value also
+#       ParseTest.from_s("{ include \"foo\", \"a\" : \"b\" }"), # valid include followed by comma and field
+#       ParseTest.from_s("{ foo include : 42 }"), # valid to have a key not starting with include
+#       ParseTest.from_s("[ ${foo} ]"),
+#       ParseTest.from_s("[ ${?foo} ]"),
+#       ParseTest.from_s("[ ${\"foo\"} ]"),
 #       ParseTest.from_s("[ ${foo.bar} ]"),
 #       ParseTest.from_s("[ abc  xyz  ${foo.bar}  qrs tuv ]"), # value concatenation
 #       ParseTest.from_s("[ 1, 2, 3, blah ]"),
@@ -253,17 +253,17 @@ module TestUtils
 #       ParseTest.from_s(%q|{ "foo" // comment
 # : 10 }|),
 #       ParseTest.from_s(%q|{ "foo" : #comment
-#  10 }|),
+# 10 }|),
 #       ParseTest.from_s(%q|{ "foo" : // comment
-#  10 }|),
+# 10 }|),
 #       ParseTest.from_s(%q|{ "foo" : 10 #comment
-#  }|),
+# }|),
 #       ParseTest.from_s(%q|{ "foo" : 10 // comment
-#  }|),
+# }|),
 #       ParseTest.from_s(%q|[ 10, # comment
-#  11]|),
-#       ParseTest.from_s(%q|[ 10, // comment
-#  11]|),
+# 11]|),
+      ParseTest.from_s(%q|[ 10, // comment
+11]|),
 #       ParseTest.from_s(%q|[ 10 # comment
 # , 11]|),
 #       ParseTest.from_s(%q|[ 10 // comment
