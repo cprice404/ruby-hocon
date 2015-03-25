@@ -221,7 +221,7 @@ class Hocon::Impl::Path
   end
 
   def self.new_path(path)
-    Hocon::Impl::Parser.parse_path(path)
+    Hocon::Impl::PathParser.parse_path(path)
   end
 
   def ==(other)

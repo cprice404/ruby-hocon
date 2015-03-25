@@ -18,6 +18,7 @@ require 'hocon/impl/path'
 require 'hocon/impl/url'
 require 'hocon/impl/config_reference'
 require 'hocon/impl/substitution_expression'
+require 'hocon/impl/path_parser'
 
 class Hocon::Impl::Parser
   
@@ -27,7 +28,7 @@ class Hocon::Impl::Parser
   ConfigConcatenation = Hocon::Impl::ConfigConcatenation
   ConfigReference = Hocon::Impl::ConfigReference
   ConfigParseError = Hocon::ConfigError::ConfigParseError
-  ConfigBugorBrokenError = Hocon::ConfigError::ConfigBugOrBrokenError
+  ConfigBugOrBrokenError = Hocon::ConfigError::ConfigBugOrBrokenError
   ConfigBadPathError = Hocon::ConfigError::ConfigBadPathError
   SimpleConfigObject = Hocon::Impl::SimpleConfigObject
   SimpleConfigList = Hocon::Impl::SimpleConfigList
@@ -36,11 +37,23 @@ class Hocon::Impl::Parser
   PathBuilder = Hocon::Impl::PathBuilder
   Tokenizer = Hocon::Impl::Tokenizer
   Path = Hocon::Impl::Path
+
+  def self.parse(tokens, origin, options, include_context)
+    context = Hocon::Impl::Parser::ParseContext.new(
+        options.syntax, origin, tokens,
+        Hocon::Impl::SimpleIncluder.make_full(options.includer),
+        include_context)
+    context.parse
+  end
   
   class TokenWithComments
     def initialize(token, comments = [])
       @token = token
       @comments = comments
+
+      if Tokens.comment?(token)
+        raise Hocon::ConfigError::ConfigBugOrBrokenError, "tried to annotate a comment with a comment"
+      end
     end
 
     attr_reader :token, :comments
@@ -103,19 +116,24 @@ class Hocon::Impl::Parser
   end
 
   class ParseContext
-    class Element
-      def initialize(initial, can_be_empty)
-        @can_be_empty = can_be_empty
-        @sb = StringIO.new(initial)
-      end
-
-      attr_reader :sb
-
-      def to_s
-        "Element(#{sb.string}, #{@can_be_empty})"
-      end
+    def initialize(flavor, origin, tokens, includer, include_context)
+      @line_number = 1
+      @buffer = []
+      @tokens = tokens
+      @flavor = flavor
+      @base_origin = origin
+      @includer = includer
+      @include_context = include_context
+      @path_stack = []
+      # this is the number of "equals" we are inside,
+      # used to modify the error message to reflect that
+      # someone may think this is .properties format.
+      @equals_count = 0
+      # the number of lists we are inside; this is used to detect the "cannot
+      # generate a reference to a list element" problem, and once we fix that
+      # problem we should be able to get rid of this variable.
+      @array_count = 0
     end
-
 
     def self.attracts_trailing_comments?(token)
       # EOF can't have a trailing comment; START, OPEN_CURLY, and
@@ -125,7 +143,9 @@ class Hocon::Impl::Parser
       # so don't do that either.
       !(Tokens.newline?(token) ||
         token == Tokens::START ||
-        token == Tokens::OPEN_CURLY)
+        token == Tokens::OPEN_CURLY ||
+        token == Tokens::OPEN_SQUARE ||
+        token == Tokens::EOF)
     end
 
     def self.attracts_leading_comments?(token)
@@ -136,34 +156,6 @@ class Hocon::Impl::Parser
           token == Tokens::CLOSE_CURLY ||
           token == Tokens::CLOSE_SQUARE ||
           token == Tokens::EOF)
-    end
-
-    def self.include_keyword?(token)
-      Tokens.unquoted_text?(token) &&
-          (Tokens.unquoted_text(token) == "include")
-    end
-
-    def initialize(flavor, origin, tokens, includer, include_context)
-      @line_number = 1
-      @flavor = flavor
-      @base_origin = origin
-      @buffer = []
-      @tokens = tokens
-      @includer = includer
-      @include_context = include_context
-      @path_stack = []
-      # this is the number of "equals" we are inside,
-      # used to modify the error message to reflect that
-      # someone may think this is .properties format.
-      @equals_count = 0
-    end
-
-    def key_value_separator_token?(t)
-      if @flavor == ConfigSyntax::JSON
-        t == Tokens::COLON
-      else
-        [Tokens::COLON, Tokens::EQUALS, Tokens::PLUS_EQUALS].any? { |sep| sep == t }
-      end
     end
 
     def consolidate_comment_block(comment_token)
@@ -214,9 +206,168 @@ class Hocon::Impl::Parser
       end
     end
 
+    def pop_token_without_trailing_comment
+      if @buffer.empty?
+        t = next_token_ignoring_whitespace
+        if Tokens.comment?(t)
+          consolidate_comment_block(t)
+          @buffer.pop
+        else
+          TokenWithComments.new(t)
+        end
+      else
+        @buffer.pop
+      end
+    end
+
+    def pop_token
+      with_preceding_comments = pop_token_without_trailing_comment
+      # handle a comment AFTER the other token,
+      # but before a newline. If the next token is not
+      # a comment, then any comment later on the line is irrelevant
+      # since it would end up going with that later token, not
+      # this token. Comments are supposed to be processed prior
+      # to adding stuff to the buffer, so they can only be found
+      # in "tokens" not in "buffer" in theory.
+      if !self.class.attracts_trailing_comments?(with_preceding_comments.token)
+        with_preceding_comments
+      elsif @buffer.empty?
+        after = next_token_ignoring_whitespace
+        if Tokens.comment?(after)
+          with_preceding_comments.add(after)
+        else
+          @buffer << TokenWithComments.new(after)
+          with_preceding_comments
+        end
+      else
+        # comments are supposed to get attached to a token,
+        # not put back in the buffer. Assert this as an invariant.
+        if Tokens.comment?(@buffer.last.token)
+          raise Hocon::ConfigError::ConfigBugOrBrokenError, "comment token should not have been in buffer: #{@buffer}"
+        end
+        with_preceding_comments
+      end
+    end
+
+    def next_token
+      with_comments = pop_token
+      t = with_comments.token
+
+      if Tokens.problem?(t)
+        origin = t.origin
+        message = Tokens.get_problem_message(t)
+        cause = Tokens.get_problem_cause(t)
+        suggest_quotes = Tokens.get_problem_suggest_quotes(t)
+        if suggest_quotes
+          message = add_quote_suggestion(t.to_s, message)
+        else
+          message = add_key_name(message)
+        end
+        raise ConfigParseError.new(origin, message, cause)
+      else
+        if @syntax == ConfigSyntax::JSON
+          if Tokens.unquoted_text?(t)
+            raise parse_error(add_key_name("Token not allowed in valid JSON: '#{Tokens.unquoted_text(t)}'"))
+          elsif Tokens.substitution?(t)
+            raise parse_error(add_key_name("Substitutions (${} syntax) not allowed in JSON"))
+          end
+        end
+
+        with_comments
+      end
+    end
+
+    def put_back(token)
+      if Tokens.comment?(token.token)
+        raise Hocon::ConfigError::ConfigBugOrBrokenError, "comment token should have been stripped before it was available to put back"
+      end
+      @buffer.push(token)
+    end
+
+    def next_token_ignoring_newline
+      t = next_token
+      while Tokens.newline?(t.token)
+        # line number tokens have the line that was _ended_ by the
+        # newline, so we have to add one. We have to update lineNumber
+        # here and also below, because not all tokens store a line
+        # number, but newline tokens always do.
+        @line_number = t.token.line_number + 1
+
+        t = next_token
+      end
+
+      # update line number again, if we have one
+      new_number = t.token.line_number
+      if new_number >= 0
+        @line_number = new_number
+      end
+
+      t
+    end
+
+    # Grabs the next Token off of the TokenIterator, ignoring
+    # IgnoredWhitespace tokens
+    def next_token_ignoring_whitespace
+      t = @tokens.next
+      while Tokens.ignore_whitespace?(t)
+        t = @tokens.next
+      end
+      t
+    end
+
+    def add_any_comments_after_any_comma(v)
+      t = next_token  # do NOT skip newlines, we only
+      # want same-line comments
+      if t.token == Tokens::COMMA
+        # steal the comments from after the comma
+        put_back(t.remove_all)
+        v.with_origin(t.append_comments(v.origin))
+      else
+        put_back(t)
+        v
+      end
+    end
+
+    # In arrays and objects, comma can be omitted
+    # as long as there's at least one newline instead.
+    # this skips any newlines in front of a comma,
+    # skips the comma, and returns true if it found
+    # either a newline or a comma. The iterator
+    # is left just after the comma or the newline.
+    def check_element_separator
+      if @flavor == ConfigSyntax::JSON
+        t = next_token_ignoring_newline
+        if (t.token == Tokens::COMMA)
+          true
+        else
+          put_back(t)
+          false
+        end
+      else
+        saw_separator_or_newline = false
+        t = next_token
+        while true
+          if Tokens.newline?(t.token)
+            # newline number is the line just ended, so add one
+            @line_number = t.token.line_number + 1
+            saw_separator_or_newline = true
+
+            # we want to continue to also eat a comma if there is one
+          elsif t.token == Tokens::COMMA
+            return true
+          else
+            # non-newline-or-comma
+            put_back(t)
+            return saw_separator_or_newline
+          end
+          t = next_token
+        end
+      end
+    end
+
     def self.token_to_substitution_expression(value_token)
       expression = Tokens.get_substitution_path_expression(value_token)
-      path = Hocon::Impl::Parser.parse_path_expression(expression, value_token.origin)
+      path = Hocon::Impl::PathParser.parse_path_expression(expression, value_token.origin)
       optional = Tokens.get_substitution_optional(value_token)
 
       Hocon::Impl::SubstitutionExpression.new(path, optional)
@@ -246,7 +397,7 @@ class Hocon::Impl::Parser
         end
 
         if v.nil?
-          raise ConfigBugOrBrokenError("no value")
+          raise Hocon::ConfigError::ConfigBugOrBrokenError, "no value"
         end
 
         if values.nil?
@@ -270,8 +421,75 @@ class Hocon::Impl::Parser
       @base_origin.with_line_number(@line_number)
     end
 
+    def parse_error(message, cause = nil)
+      ConfigParseError.new(line_origin, message, cause)
+    end
+
+    def previous_field_name(last_path = nil)
+      if !last_path.nil?
+        last_path.render
+      elsif @path_stack.empty?
+        nil
+      else
+        @path_stack[0].render
+      end
+    end
+
+    def full_current_path()
+      # pathStack has top of stack at front
+      if @path_stack.empty?
+        raise Hocon::ConfigError::ConfigBugOrBrokenError,
+              "Bug in parser; tried to get current path when at root"
+      else
+        Path.new(@path_stack.descending_iterator)
+      end
+    end
+
+    def add_key_name(message)
+      prev_field_name = previous_field_name
+      if !prev_field_name.nil?
+        "in value for key '#{prev_field_name}': #{message}"
+      else
+        message
+      end
+    end
+
+    def add_quote_suggestion(bad_token, message, last_path = nil, inside_equals = (@equals_count > 0))
+      prev_field_name = previous_field_name(last_path)
+      part =
+          if bad_token == Tokens::EOF.to_s
+            # EOF requires special handling for the error to make sense.
+            if !prev_field_name.nil?
+              "#{message} (if you intended '#{prev_field_name}' " +
+                  "to be part of a value, instead of a key, " +
+                  "try adding double quotes around the whole value"
+            else
+              message
+            end
+          else
+            if !prev_field_name.nil?
+              "#{message} (if you intended #{bad_token} " +
+                  "to be part of the value for '#{prev_field_name}', " +
+                  "try enclosing the value in double quotes"
+            else
+              "#{message} (if you intended #{bad_token} " +
+                  "to be part of a key or string value, " +
+                  "try enclosing the key or value in double quotes"
+            end
+          end
+
+      if inside_equals
+        "#{part}, or you may be able to rename the file .properties rather than .conf)"
+      else
+        "#{part})"
+      end
+    end
+
     def parse_value(t)
       v = nil
+
+      starting_array_count = @array_count
+      starting_equals_count = @equals_count
 
       if Tokens.value?(t.token)
         # if we consolidateValueTokens() multiple times then
@@ -290,10 +508,17 @@ class Hocon::Impl::Parser
       else
         raise parse_error(
                   add_quote_suggestion(t.token.to_s,
-                    "Expecting a value but got wrong token: #{t.token}"))
+                                       "Expecting a value but got wrong token: #{t.token}"))
       end
 
       v.with_origin(t.prepend_comments(v.origin))
+
+      if @array_count != starting_array_count
+        raise Hocon::ConfigError::ConfigBugOrBrokenError, "Bug in config parser: unbalanced array count"
+      end
+      if @equals_count != starting_equals_count
+        raise Hocon::ConfigError::ConfigBugOrBrokenError, "Bug in config parser: unbalanced equals count"
+      end
     end
 
     def create_value_under_path(path, value)
@@ -356,8 +581,13 @@ class Hocon::Impl::Parser
         end
 
         put_back(t)
-        Hocon::Impl::Parser.parse_path_expression(expression, line_origin)
+        Hocon::Impl::PathParser.parse_path_expression(expression, line_origin)
       end
+    end
+
+    def self.include_keyword?(token)
+      Tokens.unquoted_text?(token) &&
+          (Tokens.unquoted_text(token) == "include")
     end
 
     def unquoted_whitespace?(t)
@@ -366,7 +596,14 @@ class Hocon::Impl::Parser
       end
 
       s = Tokens.unquoted_text(t)
-      
+
+      s.each_char do |c|
+        if ! Hocon::Impl::ConfigImplUtil.whitespace?(c)
+          return false
+        end
+      end
+
+      true
     end
 
     def parse_include(values)
@@ -385,7 +622,7 @@ class Hocon::Impl::Parser
         elsif kind == "file("
         elsif kind == "classpath("
         else
-          raise parse_error("expecting include parameter to be quoted filename, file(), classpath(), or url(). No spaces are allowed before the open paren. Not expecting: " + t)
+          raise parse_error("expecting include parameter to be quoted filename, file(), classpath(), or url(). No spaces are allowed before the open paren. Not expecting: #{t}")
         end
 
         # skip space inside parens
@@ -427,7 +664,7 @@ class Hocon::Impl::Parser
         elsif kind == "classpath("
           obj = @includer.include_resources(@include_context, name)
         else
-          raise ConfigBugOrBrokenError, "should not be reached"
+          raise Hocon::ConfigError::ConfigBugOrBrokenError, "should not be reached"
         end
       elsif Tokens.value_with_type?(t.token, ConfigValueType::STRING)
         name = Tokens.value(t.token).unwrapped
@@ -441,8 +678,8 @@ class Hocon::Impl::Parser
       # See https://github.com/typesafehub/config/issues/160
       if @array_count > 0 && (obj.resolve_status != ResolveStatus::RESOLVED)
         raise parse_error("Due to current limitations of the config parser, when an include statement is nested inside a list value, " +
-          "${} substitutions inside the included file cannot be resolved correctly. Either move the include outside of the list value or " +
-          "remove the ${} statements from the included file.")
+                              "${} substitutions inside the included file cannot be resolved correctly. Either move the include outside of the list value or " +
+                              "remove the ${} statements from the included file.")
       end
 
       if !(@path_stack.is_empty?)
@@ -460,7 +697,15 @@ class Hocon::Impl::Parser
         end
       end
     end
-    
+
+    def key_value_separator_token?(t)
+      if @flavor == ConfigSyntax::JSON
+        t == Tokens::COLON
+      else
+        [Tokens::COLON, Tokens::EQUALS, Tokens::PLUS_EQUALS].any? { |sep| sep == t }
+      end
+    end
+
     def parse_object(had_open_curly)
       # invoked just after the OPEN_CURLY (or START, if !hadOpenCurly)
       values = {}
@@ -475,11 +720,11 @@ class Hocon::Impl::Parser
           if (@flavor == ConfigSyntax::JSON) && after_comma
             raise parse_error(
                       add_quote_suggestion(t,
-                        "expecting a field name after a comma, got a close brace } instead"))
+                                           "expecting a field name after a comma, got a close brace } instead"))
           elsif !had_open_curly
             raise parse_error(
                       add_quote_suggestion(t,
-                        "unbalanced close brace '}' with no open brace"))
+                                           "unbalanced close brace '}' with no open brace"))
           end
 
           object_origin = t.append_comments(object_origin)
@@ -499,6 +744,24 @@ class Hocon::Impl::Parser
 
           # path must be on-stack while we parse the value
           @path_stack.push(path)
+
+          if after_key.token == Tokens::PLUS_EQUALS
+            # we really should make this work, but for now throwing
+            # an exception is better than producing an incorrect
+            # result. See
+            # https://github.com/typesafehub/config/issues/160
+            if @array_count > 0
+              raise parse_error("Due to current limitations of the config parser, += does not work nested inside a list. " +
+                "+= expands to a ${} substitution and the path in ${} cannot currently refer to list elements. " +
+                "You might be able to move the += outside of the list and then refer to it from inside the list with ${}.")
+            end
+
+            # because we will put it in an array after the fact so
+            # we want this to be incremented during the parseValue
+            # below in order to throw the above exception.
+            @array_count += 1
+          end
+
           value_token = nil
           new_value = nil
           if (@flavor == ConfigSyntax::CONF) &&
@@ -509,7 +772,7 @@ class Hocon::Impl::Parser
             if !key_value_separator_token?(after_key.token)
               raise parse_error(
                         add_quote_suggestion(after_key,
-                          "Key '#{path.render}' may not be followed by token: #{after_key}"))
+                                             "Key '#{path.render}' may not be followed by token: #{after_key}"))
             end
 
             if after_key.token == Tokens::EQUALS
@@ -528,6 +791,8 @@ class Hocon::Impl::Parser
           new_value = parse_value(value_token.prepend(key_token.comments))
 
           if after_key.token == Tokens::PLUS_EQUALS
+            @array_count -= 1
+
             previous_ref = ConfigReference.new(
                 new_value.origin,
                 SubstitutionExpression.new(full_current_path, true))
@@ -570,7 +835,7 @@ class Hocon::Impl::Parser
             values[key] = new_value
           else
             if @flavor == ConfigSyntax::JSON
-              raise ConfigBugOrBrokenError, "somehow got multi-element path in JSON mode"
+              raise Hocon::ConfigError::ConfigBugOrBrokenError, "somehow got multi-element path in JSON mode"
             end
 
             obj = create_value_under_path(remaining, new_value)
@@ -621,6 +886,8 @@ class Hocon::Impl::Parser
 
     def parse_array
       # invoked just after the OPEN_SQUARE
+      @array_count += 1
+
       array_origin = line_origin
       values = []
 
@@ -630,6 +897,7 @@ class Hocon::Impl::Parser
 
       # special-case the first element
       if t.token == Tokens::CLOSE_SQUARE
+        @array_count -= 1
         return SimpleConfigList.new(t.append_comments(array_origin), [])
       elsif (Tokens.value?(t.token)) ||
           (t.token == Tokens::OPEN_CURLY) ||
@@ -639,7 +907,7 @@ class Hocon::Impl::Parser
         values.push(v)
       else
         raise parse_error(add_key_name("List should have ] or a first element after the open [, instead had token: " +
-          "#{t} (if you want #{t} to be part of a string value, then double-quote it)"))
+                                           "#{t} (if you want #{t} to be part of a string value, then double-quote it)"))
       end
 
       # now remaining elements
@@ -650,10 +918,11 @@ class Hocon::Impl::Parser
         else
           t = next_token_ignoring_newline
           if t.token == Tokens::CLOSE_SQUARE
+            @array_count -= 1
             return SimpleConfigList.new(t.append_comments(array_origin), values)
           else
             raise parse_error(add_key_name("List should have ended with ] or had a comma, instead had token: " +
-              "#{t} (if you want #{t} to be part of a string value, then double-quote it)"))
+                                               "#{t} (if you want #{t} to be part of a string value, then double-quote it)"))
           end
         end
 
@@ -669,12 +938,12 @@ class Hocon::Impl::Parser
           v = add_any_comments_after_any_comma(v)
           values.push(v)
         elsif (@flavor != ConfigSyntax::JSON) &&
-                (t.token == Tokens::CLOSE_SQUARE)
+            (t.token == Tokens::CLOSE_SQUARE)
           # we allow one trailing comma
           put_back(t)
         else
           raise parse_error(add_key_name("List should have had new element after a comma, instead had token: " +
-          "#{t} (if you want the comma or #{t} to be part of a string value, then double-quote it)"))
+                                             "#{t} (if you want the comma or #{t} to be part of a string value, then double-quote it)"))
         end
       end
     end
@@ -682,7 +951,7 @@ class Hocon::Impl::Parser
     def parse
       t = next_token_ignoring_newline
       if t.token != Tokens::START
-        raise ConfigBugOrBrokenError, "token stream did not begin with START, had #{t}"
+        raise Hocon::ConfigError::ConfigBugOrBrokenError, "token stream did not begin with START, had #{t}"
       end
 
       t = next_token_ignoring_newline
@@ -714,399 +983,5 @@ class Hocon::Impl::Parser
         raise parse_error("Document has trailing tokens after first object or array: #{t}")
       end
     end
-
-    def put_back(token)
-      if Tokens.comment?(token.token)
-        raise ConfigBugOrBrokenError, "comment token should have been stripped before it was available to put back"
-      end
-      @buffer.push(token)
-    end
-
-    def next_token_ignoring_newline
-      t = next_token
-      while Tokens.newline?(t.token)
-        # line number tokens have the line that was _ended_ by the
-        # newline, so we have to add one. We have to update lineNumber
-        # here and also below, because not all tokens store a line
-        # number, but newline tokens always do.
-        @line_number = t.token.line_number + 1
-
-        t = next_token
-      end
-
-      # update line number again, if we have one
-      new_number = t.token.line_number
-      if new_number >= 0
-        @line_number = new_number
-      end
-
-      t
-    end
-
-    # Grabs the next Token off of the TokenIterator, ignoring
-    # IgnoredWhitespace tokens
-    def next_token_ignoring_whitespace
-      t = @tokens.next
-      while Tokens.ignore_whitespace?(t)
-        t = @tokens.next
-      end
-      t
-    end
-
-    def next_token
-      with_comments = pop_token
-      t = with_comments.token
-
-      if Tokens.problem?(t)
-        origin = t.origin
-        message = Tokens.get_problem_message(t)
-        cause = Tokens.get_problem_cause(t)
-        suggest_quotes = Tokens.get_problem_suggest_quotes(t)
-        if suggest_quotes
-          message = add_quote_suggestion(t.to_s, message)
-        else
-          message = add_key_name(message)
-        end
-        raise ConfigParseError.new(origin, message, cause)
-      else
-        if @syntax == ConfigSyntax::JSON
-          if Tokens.unquoted_text?(t)
-            raise parse_error(add_key_name("Token not allowed in valid JSON: '#{Tokens.unquoted_text(t)}'"))
-          elsif Tokens.substitution?(t)
-            raise parse_error(add_key_name("Substitutions (${} syntax) not allowed in JSON"))
-          end
-        end
-
-        with_comments
-      end
-    end
-
-    def add_any_comments_after_any_comma(v)
-      t = next_token  # do NOT skip newlines, we only
-                      # want same-line comments
-      if t.token == Tokens::COMMA
-        # steal the comments from after the comma
-        put_back(t.remove_all)
-        v.with_origin(t.append_comments(v.origin))
-      else
-        put_back(t)
-        v
-      end
-    end
-
-    # In arrays and objects, comma can be omitted
-    # as long as there's at least one newline instead.
-    # this skips any newlines in front of a comma,
-    # skips the comma, and returns true if it found
-    # either a newline or a comma. The iterator
-    # is left just after the comma or the newline.
-    def check_element_separator
-      if @flavor == ConfigSyntax::JSON
-        t = next_token_ignoring_newline
-        if (t.token == Tokens::COMMA)
-          true
-        else
-          put_back(t)
-          false
-        end
-      else
-        saw_separator_or_newline = false
-        t = next_token
-        while true
-          if Tokens.newline?(t.token)
-            # newline number is the line just ended, so add one
-            @line_number = t.token.line_number + 1
-            saw_separator_or_newline = true
-
-            # we want to continue to also eat a comma if there is one
-          elsif t.token == Tokens::COMMA
-            return true
-          else
-            # non-newline-or-comma
-            put_back(t)
-            return saw_separator_or_newline
-          end
-          t = next_token
-        end
-      end
-    end
-
-    def parse_error(message, cause = nil)
-      ConfigParseError.new(line_origin, message, cause)
-    end
-
-    def previous_field_name(last_path = nil)
-      if !last_path.nil?
-        last_path.render
-      elsif @path_stack.empty?
-        nil
-      else
-        @path_stack[0].render
-      end
-    end
-
-    def add_key_name(message)
-      prev_field_name = previous_field_name
-      if !prev_field_name.nil?
-        "in value for key '#{prev_field_name}': #{message}"
-      else
-        message
-      end
-    end
-
-    def add_quote_suggestion(bad_token, message, last_path = nil, inside_equals = (@equals_count > 0))
-      prev_field_name = previous_field_name(last_path)
-      part =
-          if bad_token == Tokens::EOF.to_s
-            # EOF requires special handling for the error to make sense.
-            if !prev_field_name.nil?
-              "#{message} (if you intended '#{prev_field_name}' " +
-              "to be part of a value, instead of a key, " +
-              "try adding double quotes around the whole value"
-            else
-              message
-            end
-          else
-            if !prev_field_name.nil?
-              "#{message} (if you intended #{bad_token} " +
-              "to be part of the value for '#{prev_field_name}', " +
-              "try enclosing the value in double quotes"
-            else
-              "#{message} (if you intended #{bad_token} " +
-              "to be part of a key or string value, " +
-              "try enclosing the key or value in double quotes"
-            end
-          end
-
-      if inside_equals
-        "#{part}, or you may be able to rename the file .properties rather than .conf)"
-      else
-        "#{part})"
-      end
-    end
-
-
-    def pop_token
-      with_preceding_comments = pop_token_without_trailing_comment
-      # handle a comment AFTER the other token,
-      # but before a newline. If the next token is not
-      # a comment, then any comment later on the line is irrelevant
-      # since it would end up going with that later token, not
-      # this token. Comments are supposed to be processed prior
-      # to adding stuff to the buffer, so they can only be found
-      # in "tokens" not in "buffer" in theory.
-      if !self.class.attracts_trailing_comments?(with_preceding_comments.token)
-        with_preceding_comments
-      elsif @buffer.empty?
-        after = next_token_ignoring_whitespace
-        if Tokens.comment?(after)
-          with_preceding_comments.add(after)
-        else
-          @buffer << TokenWithComments.new(after)
-          with_preceding_comments
-        end
-      else
-        # comments are supposed to get attached to a token,
-        # not put back in the buffer. Assert this as an invariant.
-        if Tokens.comment?(@buffer.last.token)
-          raise ConfigBugOrBrokenError, "comment token should not have been in buffer: #{@buffer}"
-        end
-        with_preceding_comments
-      end
-    end
-
-    def pop_token_without_trailing_comment
-      if @buffer.empty?
-        t = next_token_ignoring_whitespace
-        if Tokens.comment?(t)
-          consolidate_comment_block(t)
-          @buffer.pop
-        else
-          TokenWithComments.new(t)
-        end
-      else
-        @buffer.pop
-      end
-    end
-
-  end
-
-  class Element
-    def initialize(initial, can_be_empty)
-      @can_be_empty = can_be_empty
-      @sb = StringIO.new(initial)
-    end
-
-    attr_accessor :can_be_empty
-
-    def to_string
-      "Element(#{@sb.string},#{@can_be_empty})"
-    end
-
-    def sb
-      @sb
-    end
-  end
-
-  def self.has_unsafe_chars(s)
-    for i in 0...s.length
-      c = s[i]
-      if (c =~ /[[:alpha:]]/) || c == '.'
-        next
-      else
-        return true
-      end
-    end
-    false
-  end
-
-  def self.append_path_string(pb, s)
-    split_at = s.index('.')
-    if split_at.nil?
-      pb.append_key(s)
-    else
-      pb.append_key(s[0...split_at])
-      append_path_string(pb, s[(split_at + 1)...s.length])
-    end
-  end
-
-  def self.speculative_fast_parse_path(path)
-    s = ConfigImplUtil.unicode_trim(path)
-    if s.empty?
-      return nil
-    end
-    if has_unsafe_chars(s)
-      return nil
-    end
-    if s.start_with?(".") || s.end_with?(".") || s.include?("..")
-      return nil
-    end
-
-    pb = PathBuilder.new
-    append_path_string(pb, s)
-    pb.result
-  end
-
-  def self.api_origin
-    SimpleConfigOrigin.new_simple("path parameter")
-  end
-
-  def self.parse_path(path)
-    speculated = speculative_fast_parse_path(path)
-    if not speculated.nil?
-      return speculated
-    end
-
-    reader = StringIO.new(path)
-
-    begin
-      tokens = Tokenizer.tokenize(api_origin, reader, ConfigSyntax::CONF)
-      tokens.next # drop START
-      return parse_path_expression(tokens, api_origin, path)
-    ensure
-      reader.close
-    end
-  end
-
-  def self.add_path_text(buf, was_quoted, new_text)
-    i = if was_quoted
-          -1
-        else
-          new_text.index('.') || -1
-        end
-    current = buf.last
-    if i < 0
-      # add to current path element
-      current.sb << new_text
-      # any empty quoted string means this element can
-      # now be empty.
-      if was_quoted && (current.sb.length == 0)
-        current.can_be_empty = true
-      end
-    else
-      # "buf" plus up to the period is an element
-      current.sb << new_text[0, i]
-      # then start a new element
-      buf.push(Element.new("", false))
-      # recurse to consume remainder of new_text
-      add_path_text(buf, false, new_text[i + 1, new_text.length - 1])
-    end
-  end
-
-  def self.parse_path_expression(expression, origin, original_text = nil)
-    buf = []
-    buf.push(Element.new("", false))
-
-    if expression.empty?
-      raise ConfigBadPathError.new(
-                origin,
-                original_text,
-                "Expecting a field name or path here, but got nothing")
-    end
-
-    expression.each do |t|
-      # Ignore all IgnoredWhitespace tokens
-      next if Tokens.ignore_whitespace?(t)
-
-      if Tokens.value_with_type?(t, ConfigValueType::STRING)
-        v = Tokens.value(t)
-        # this is a quoted string; so any periods
-        # in here don't count as path separators
-        s = v.transform_to_string
-        add_path_text(buf, true, s)
-      elsif t == Tokens::EOF
-        # ignore this; when parsing a file, it should not happen
-        # since we're parsing a token list rather than the main
-        # token iterator, and when parsing a path expression from the
-        # API, it's expected to have an EOF.
-      else
-        # any periods outside of a quoted string count as
-        # separators
-        text = nil
-        if Tokens.value?(t)
-          # appending a number here may add
-          # a period, but we _do_ count those as path
-          # separators, because we basically want
-          # "foo 3.0bar" to parse as a string even
-          # though there's a number in it. The fact that
-          # we tokenize non-string values is largely an
-          # implementation detail.
-          v = Tokens.value(t)
-          text = v.transform_to_string
-        elsif Tokens.unquoted_text?(t)
-          text = Tokens.unquoted_text(t)
-        else
-          raise ConfigBadPathError.new(
-                    origin,
-                    original_text,
-                    "Token not allowed in path expression: #{t}" +
-                        " (you can double-quote this token if you really want it here)")
-        end
-
-        add_path_text(buf, false, text)
-      end
-    end
-
-    pb = Hocon::Impl::PathBuilder.new
-    buf.each do |e|
-      if (e.sb.length == 0) && !e.can_be_empty
-        raise Hocon::ConfigError::ConfigBadPathError.new(
-                  origin,
-                  original_text,
-                  "path has a leading, trailing, or two adjacent period '.' (use quoted \"\" empty string if you want an empty element)")
-      else
-        pb.append_key(e.sb.string)
-      end
-    end
-
-    pb.result
-  end
-
-  def self.parse(tokens, origin, options, include_context)
-    context = Hocon::Impl::Parser::ParseContext.new(
-        options.syntax, origin, tokens,
-        Hocon::Impl::SimpleIncluder.make_full(options.includer),
-        include_context)
-    context.parse
   end
 end
