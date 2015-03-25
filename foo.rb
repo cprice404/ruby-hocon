@@ -17,7 +17,8 @@ require 'hocon/impl/resolve_context'
 require 'hocon/config_resolve_options'
 
 #s = %q|{ "a" : [1,2], "b" : y${a}z }|
-s = %q|{ "foo" : { "bar" : "baz", "woo" : "w00t" }, "baz" : { "bar" : "baz", "woo" : [1,2,3,4], "w00t" : true, "a" : false, "b" : 3.14, "c" : null } }|
+#s = %q|{ "foo" : { "bar" : "baz", "woo" : "w00t" }, "baz" : { "bar" : "baz", "woo" : [1,2,3,4], "w00t" : true, "a" : false, "b" : 3.14, "c" : null } }|
+s = %q|{ "c" : null }|
 options = Hocon::ConfigParseOptions.defaults.
               set_origin_description("test conf string").
               set_syntax(Hocon::ConfigSyntax::CONF)
