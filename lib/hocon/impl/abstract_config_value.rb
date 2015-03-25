@@ -129,7 +129,7 @@ class Hocon::Impl::AbstractConfigValue
   end
 
   def new_copy(origin)
-    raise ConfigBugOrBrokenError, "subclasses of AbstractConfigValue should provide their own implementation of `new_copy`"
+    raise ConfigBugOrBrokenError, "subclasses of AbstractConfigValue should provide their own implementation of `new_copy` (#{self.class})"
   end
 
   # this is virtualized rather than a field because only some subclasses

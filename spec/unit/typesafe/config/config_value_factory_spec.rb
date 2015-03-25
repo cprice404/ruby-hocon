@@ -43,9 +43,9 @@ describe Hocon::ConfigValueFactory do
       expect(value.unwrapped).to eq(123)
     end
 
-    it "should convert a float into a ConfigFloat object" do
+    it "should convert a double into a ConfigDouble object" do
       value = Hocon::ConfigValueFactory.from_any_ref(123.456, nil)
-      expect(value).to be_instance_of(Hocon::Impl::ConfigFloat)
+      expect(value).to be_instance_of(Hocon::Impl::ConfigDouble)
       expect(value.unwrapped).to eq(123.456)
     end
 

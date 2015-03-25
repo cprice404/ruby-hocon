@@ -10,7 +10,7 @@ require 'hocon/impl/path_parser'
 module TestUtils
   Tokens = Hocon::Impl::Tokens
   ConfigInt = Hocon::Impl::ConfigInt
-  ConfigFloat = Hocon::Impl::ConfigFloat
+  ConfigDouble = Hocon::Impl::ConfigDouble
   ConfigString = Hocon::Impl::ConfigString
   ConfigNull = Hocon::Impl::ConfigNull
   ConfigBoolean = Hocon::Impl::ConfigBoolean
@@ -120,12 +120,19 @@ module TestUtils
       ParseTest.from_s("[${}]"), # empty substitution (no path)
       ParseTest.from_s("[${?}]"), # no path with ? substitution
       ParseTest.new(false, true, "[${ ?foo}]"), # space before ? not allowed
+
+
+
       # TODO Commenting out the following 2 tests because we suspect missing code in SimpleConfigList/Object
       # is screwing something up.
       # Discovered the problem when I modified SimpleConfigOrigin::merge_origins and implemented
       # SimpleConfigOrigins::merge_three
       # ParseTest.from_s(%q|{ "a" : [1,2], "b" : y${a}z }|), # trying to interpolate an array in a string
       # ParseTest.from_s(%q|{ "a" : { "c" : 2 }, "b" : y${a}z }|), # trying to interpolate an object in a string
+
+
+
+
       ParseTest.from_s(%q|{ "a" : ${a} }|), # simple cycle
       ParseTest.from_s(%q|[ { "a" : 2, "b" : ${${a}} } ]|), # nested substitution
       ParseTest.from_s("[ = ]"), # = is not a valid token in unquoted text
@@ -182,8 +189,8 @@ module TestUtils
       # ParseTest.from_s(%q|{"a":{"a":{"a":{"a":{"a":{"a":{"a":{"a":42}}}}}}}}|),
       # ParseTest.from_s("[ \"#comment\" ]"), # quoted # comment
       # ParseTest.from_s("[ \"//comment\" ]"), # quoted // comment
-      # # this long one is mostly to test renderin)g
-      # ParseTest.from_s(%q|{ "foo" : { "bar" : "baz", "woo" : "w00t" }, "baz" : { "bar" : "baz", "woo" : [1,2,3,4], "w00t" : true, "a" : false, "b" : 3.14, "c" : null } }|),
+      # this long one is mostly to test renderin)g
+      ParseTest.from_s(%q|{ "foo" : { "bar" : "baz", "woo" : "w00t" }, "baz" : { "bar" : "baz", "woo" : [1,2,3,4], "w00t" : true, "a" : false, "b" : 3.14, "c" : null } }|),
       # ParseTest.from_s("{}"),
       # ParseTest.from_pair(true, "[ 10e+3 ]") # "+" in a number (lift doesn't handle))
   ]
@@ -447,7 +454,7 @@ module TestUtils
   end
 
   def self.double_value(value)
-    ConfigFloat.new(fake_origin, value, nil)
+    ConfigDouble.new(fake_origin, value, nil)
   end
 
   def self.string_value(value)

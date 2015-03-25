@@ -92,7 +92,7 @@ class Hocon::Impl::ConfigImpl
       # not using ConfigNumber.newNumber() when we have a
       # Double, Integer, or Long.
       if object.is_a?(Float)
-        return Hocon::Impl::ConfigFloat.new(origin, object, nil)
+        return Hocon::Impl::ConfigDouble.new(origin, object, nil)
       elsif object.is_a?(Integer)
         return Hocon::Impl::ConfigInt.new(origin, object, nil)
       else

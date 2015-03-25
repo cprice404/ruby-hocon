@@ -17,7 +17,7 @@ class Hocon::Impl::Tokens
   TokenType = Hocon::Impl::TokenType
   ConfigNumber = Hocon::Impl::ConfigNumber
   ConfigInt = Hocon::Impl::ConfigInt
-  ConfigFloat = Hocon::Impl::ConfigFloat
+  ConfigDouble = Hocon::Impl::ConfigDouble
   ConfigString = Hocon::Impl::ConfigString
   ConfigNull = Hocon::Impl::ConfigNull
   ConfigBoolean = Hocon::Impl::ConfigBoolean

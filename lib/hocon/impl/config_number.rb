@@ -7,14 +7,14 @@ class Hocon::Impl::ConfigNumber < Hocon::Impl::AbstractConfigValue
   ## sigh... requiring these subclasses before this class
   ## is declared would cause an error.  Thanks, ruby.
   require 'hocon/impl/config_int'
-  require 'hocon/impl/config_float'
+  require 'hocon/impl/config_double'
 
   def self.new_number(origin, number, original_text)
     as_int = number.to_i
     if as_int == number
       Hocon::Impl::ConfigInt.new(origin, as_int, original_text)
     else
-      Hocon::Impl::ConfigFloat.new(origin, number, original_text)
+      Hocon::Impl::ConfigDouble.new(origin, number, original_text)
     end
   end
 
@@ -22,6 +22,7 @@ class Hocon::Impl::ConfigNumber < Hocon::Impl::AbstractConfigValue
     super(origin)
     @original_text = original_text
   end
+  attr_reader :original_text
 
   def transform_to_string
     @original_text
