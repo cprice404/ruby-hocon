@@ -21,8 +21,36 @@ class Hocon::Impl::Tokenizer
     end
   end
 
+  def self.as_string(codepoint)
+    if codepoint == "\n"
+      "newline"
+    elsif codepoint == "\t"
+      "tab"
+    elsif codepoint == -1
+      "end of file"
+    elsif codepoint =~ /[[:cntrl:]]/
+      "control character 0x%x" % codepoint
+    else
+      "%c" % codepoint
+    end
+  end
+
+  # Tokenizes a Reader. Does not close the reader; you have to arrange to do
+  # that after you're done with the returned iterator.
+  def self.tokenize(origin, input, syntax)
+    TokenIterator.new(origin, input, syntax != Hocon::ConfigSyntax::JSON)
+  end
+
+  def self.render(tokens)
+    rendered_text = ""
+    while (t = tokens.next)
+      rendered_text << t.token_text
+    end
+    rendered_text
+  end
+
   class TokenIterator
-    extend Forwardable
+
     class WhitespaceSaver
       def initialize
         @whitespace = StringIO.new
@@ -39,10 +67,6 @@ class Hocon::Impl::Tokenizer
         else
           next_is_not_a_simple_value(base_origin, line_number)
         end
-      end
-
-      def line_origin(base_origin, line_number)
-        base_origin.with_line_number(line_number)
       end
 
       private
@@ -67,12 +91,12 @@ class Hocon::Impl::Tokenizer
         return nil unless @whitespace.length > 0
         if (@last_token_was_simple_value)
           t = Tokens.new_unquoted_text(
-              line_origin(base_origin, line_number),
+              Hocon::Impl::Tokenizer::TokenIterator.line_origin(base_origin, line_number),
               String.new(@whitespace.string)
           )
         else
           t = Tokens.new_ignored_whitespace(
-              line_origin(base_origin, line_number),
+              Hocon::Impl::Tokenizer::TokenIterator.line_origin(base_origin, line_number),
               String.new(@whitespace.string)
           )
         end
@@ -80,36 +104,6 @@ class Hocon::Impl::Tokenizer
         t
       end
     end
-
-    # chars JSON allows a number to start with
-    FIRST_NUMBER_CHARS = "0123456789-"
-    # chars JSON allows to be part of a number
-    NUMBER_CHARS = "0123456789eE+-."
-    # chars that stop an unquoted string
-    NOT_IN_UNQUOTED_TEXT = "$\"{}[]:=,+#`^?!@*&\\"
-
-    def self.problem(origin, what, message, suggest_quotes, cause)
-      if what.nil? || message.nil?
-        raise ConfigBugOrBrokenError.new("internal error, creating bad TokenizerProblemError")
-      end
-      TokenizerProblemError.new(Tokens.new_problem(origin, what, message, suggest_quotes, cause))
-    end
-
-    def self.simple_value?(t)
-      Tokens.substitution?(t) ||
-          Tokens.unquoted_text?(t) ||
-          Tokens.value?(t)
-    end
-
-    def self.whitespace?(c)
-      Hocon::Impl::ConfigImplUtil.whitespace?(c)
-    end
-
-    def self.whitespace_not_newline?(c)
-      (c != "\n") and (Hocon::Impl::ConfigImplUtil.whitespace?(c))
-    end
-
-    def_delegator :@tokens, :each
 
     def initialize(origin, input, allow_comments)
       @origin = origin
@@ -121,6 +115,37 @@ class Hocon::Impl::Tokenizer
       @tokens = []
       @tokens << Tokens::START
       @whitespace_saver = WhitespaceSaver.new
+    end
+
+    # this should ONLY be called from nextCharSkippingComments
+    # or when inside a quoted string, or when parsing a sequence
+    # like ${ or +=, everything else should use
+    # nextCharSkippingComments().
+    def next_char_raw
+      if @buffer.empty?
+        begin
+          @input.readchar.chr
+        rescue EOFError
+          -1
+        end
+      else
+        @buffer.pop
+      end
+    end
+
+    def put_back(c)
+      if @buffer.length > 2
+        raise ConfigBugOrBrokenError, "bug: putBack() three times, undesirable look-ahead"
+      end
+      @buffer.push(c)
+    end
+
+    def self.whitespace?(c)
+      Hocon::Impl::ConfigImplUtil.whitespace?(c)
+    end
+
+    def self.whitespace_not_newline?(c)
+      (c != "\n") and (Hocon::Impl::ConfigImplUtil.whitespace?(c))
     end
 
     def start_of_comment?(c)
@@ -146,25 +171,7 @@ class Hocon::Impl::Tokenizer
       end
     end
 
-    def put_back(c)
-      if @buffer.length > 2
-        raise ConfigBugOrBrokenError, "bug: putBack() three times, undesirable look-ahead"
-      end
-      @buffer.push(c)
-    end
-
-    def next_char_raw
-      if @buffer.empty?
-        begin
-          @input.readchar.chr
-        rescue EOFError
-          -1
-        end
-      else
-        @buffer.pop
-      end
-    end
-
+    # get next char, skipping non-newline whitespace
     def next_char_after_whitespace(saver)
       while true
         c = next_char_raw
@@ -179,6 +186,53 @@ class Hocon::Impl::Tokenizer
         end
       end
     end
+
+    def self.problem(origin, what, message, suggest_quotes, cause)
+      if what.nil? || message.nil?
+        raise ConfigBugOrBrokenError.new("internal error, creating bad TokenizerProblemError")
+      end
+      TokenizerProblemError.new(Tokens.new_problem(origin, what, message, suggest_quotes, cause))
+    end
+
+    def self.line_origin(base_origin, line_number)
+      base_origin.with_line_number(line_number)
+    end
+
+    # ONE char has always been consumed, either the # or the first /, but not
+    # both slashes
+    def pull_comment(first_char)
+      double_slash = false
+      if first_char == '/'
+        discard = next_char_raw
+        if discard != '/'
+          raise ConfigBugOrBrokenError, "called pullComment but // not seen"
+        end
+        double_slash = true
+      end
+
+      io = StringIO.new
+      while true
+        c = next_char_raw
+        if (c == -1) || (c == "\n")
+          put_back(c)
+          if (double_slash)
+            return Tokens.new_comment_double_slash(@line_origin, io.string)
+          else
+            return Tokens.new_comment_hash(@line_origin, io.string)
+          end
+        else
+          io << c
+        end
+      end
+    end
+
+    # chars JSON allows a number to start with
+    FIRST_NUMBER_CHARS = "0123456789-"
+    # chars JSON allows to be part of a number
+    NUMBER_CHARS = "0123456789eE+-."
+    # chars that stop an unquoted string
+    NOT_IN_UNQUOTED_TEXT = "$\"{}[]:=,+#`^?!@*&\\"
+
 
     # The rules here are intended to maximize convenience while
     # avoiding confusion with real valid JSON. Basically anything
@@ -222,33 +276,6 @@ class Hocon::Impl::Tokenizer
       Tokens.new_unquoted_text(origin, io.string)
     end
 
-
-    def pull_comment(first_char)
-      double_slash = false
-      if first_char == '/'
-        discard = next_char_raw
-        if discard != '/'
-          raise ConfigBugOrBrokenError, "called pullComment but // not seen"
-        end
-        double_slash = true
-      end
-
-      io = StringIO.new
-      while true
-        c = next_char_raw
-        if (c == -1) || (c == "\n")
-          put_back(c)
-          if (double_slash)
-            return Tokens.new_comment_double_slash(@line_origin, io.string)
-          else
-            return Tokens.new_comment_hash(@line_origin, io.string)
-          end
-        else
-          io << c
-        end
-      end
-    end
-
     def pull_number(first_char)
       sb = StringIO.new
       sb << first_char
@@ -270,7 +297,7 @@ class Hocon::Impl::Tokenizer
       begin
         if contained_decimal_or_e
           # force floating point representation
-          Tokens.new_float(@line_origin, Float(s), s)
+          Tokens.new_double(@line_origin, Float(s), s)
         else
           Tokens.new_long(@line_origin, Integer(s), s)
         end
@@ -280,7 +307,7 @@ class Hocon::Impl::Tokenizer
           s.each_char do |u|
             if NOT_IN_UNQUOTED_TEXT.index(u)
               raise self.class.problem(@line_origin, u, "Reserved character '#{u}'" +
-                "is not allowed outside quotes", true, nil)
+                                                       "is not allowed outside quotes", true, nil)
             end
           end
           # no evil chars so we just decide this was a string and
@@ -337,11 +364,16 @@ class Hocon::Impl::Tokenizer
           end
           sb_orig << codepoint
           # Convert codepoint to a unicode character
-          sb << [codepoint.hex].pack("U")
-
+          packed = [codepoint.hex].pack("U")
+          if packed == "_"
+            raise self.class.problem(@line_origin, codepoint,
+                                     "Malformed hex digits after \\u escape in string: '#{codepoint}'",
+                                     false, nil)
+          end
+          sb << packed
         else
           error_msg = "backslash followed by '#{escaped}', this is not a valid escape sequence (quoted strings use JSON escaping, so use double-backslash \\ for literal backslash)"
-          raise self.class.problem(escaped, "", error_msg, false, nil)
+          raise self.class.problem(Hocon::Impl::Tokenizer.as_string(escaped), "", error_msg, false, nil)
       end
     end
 
@@ -402,7 +434,7 @@ class Hocon::Impl::Tokenizer
           # done!
         elsif c =~ /[[:cntrl:]]/
           raise self.class.problem(@line_origin, c, "JSON does not allow unescaped #{c}" +
-                            " in quoted strings, use a backslash escape", false, nil)
+                                                   " in quoted strings, use a backslash escape", false, nil)
         else
           sb << c
           sb_orig << c
@@ -447,9 +479,9 @@ class Hocon::Impl::Tokenizer
       c = next_char_raw
 
       if c == '?'
-          optional = true
+        optional = true
       else
-          put_back(c)
+        put_back(c)
       end
 
       saver = WhitespaceSaver.new
@@ -527,6 +559,12 @@ class Hocon::Impl::Tokenizer
       end
     end
 
+    def self.simple_value?(t)
+      Tokens.substitution?(t) ||
+          Tokens.unquoted_text?(t) ||
+          Tokens.value?(t)
+    end
+
     def queue_next_token
       t = pull_next_token(@whitespace_saver)
       whitespace = @whitespace_saver.check(t, @origin, @line_number)
@@ -534,6 +572,10 @@ class Hocon::Impl::Tokenizer
         @tokens.push(whitespace)
       end
       @tokens.push(t)
+    end
+
+    def has_next?
+      !@tokens.empty?
     end
 
     def next
@@ -551,12 +593,8 @@ class Hocon::Impl::Tokenizer
       t
     end
 
-    def empty?
-      @tokens.empty?
-    end
-
-    def has_next?
-      !empty?
+    def remove
+      raise ConfigBugOrBrokenError, "Does not make sense to remove items from token stream"
     end
 
     def each
@@ -573,7 +611,6 @@ class Hocon::Impl::Tokenizer
         # map block to token_list
         token_list << yield(token)
       end
-
       token_list
     end
 
@@ -581,18 +618,6 @@ class Hocon::Impl::Tokenizer
       # Return array of tokens from the iterator
       self.map { |token| token }
     end
-  end
 
-
-  def self.tokenize(origin, input, syntax)
-    TokenIterator.new(origin, input, syntax != Hocon::ConfigSyntax::JSON)
-  end
-
-  def self.render(tokens)
-    rendered_text = ""
-    while (t = tokens.next)
-      rendered_text << t.token_text
-    end
-    rendered_text
   end
 end

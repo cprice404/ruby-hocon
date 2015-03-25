@@ -67,7 +67,7 @@ describe Hocon::Impl::Tokenizer do
                                TestUtils.token_unquoted("bar"),
                                TestUtils.token_unquoted(" "),
                                TestUtils.token_unquoted("baz"),
-                               TestUtils.token_whitespace("    "),
+                               TestUtils.token_whitespace("   "),
                                TestUtils.token_line(1)] }
 
       include_examples "token_matching"
@@ -272,31 +272,31 @@ describe Hocon::Impl::Tokenizer do
   context "tokenizing numbers" do
     context "parse positive float" do
       let(:test_string) { "1.2" }
-      let(:expected_tokens) { [TestUtils.token_float(1.2)] }
+      let(:expected_tokens) { [TestUtils.token_double(1.2)] }
       include_examples "token_matching"
     end
 
     context "parse negative float" do
       let(:test_string) { "-1.2" }
-      let(:expected_tokens) { [TestUtils.token_float(-1.2)] }
+      let(:expected_tokens) { [TestUtils.token_double(-1.2)] }
       include_examples "token_matching"
     end
 
     context "parse exponent notation" do
       let(:test_string) { "1e6" }
-      let(:expected_tokens) { [TestUtils.token_float(1e6)] }
+      let(:expected_tokens) { [TestUtils.token_double(1e6)] }
       include_examples "token_matching"
     end
 
     context "parse negative exponent" do
       let(:test_string) { "1e-6" }
-      let(:expected_tokens) { [TestUtils.token_float(1e-6)] }
+      let(:expected_tokens) { [TestUtils.token_double(1e-6)] }
       include_examples "token_matching"
     end
 
     context "parse exponent with capital E" do
       let(:test_string) { "1E-6" }
-      let(:expected_tokens) { [TestUtils.token_float(1e-6)] }
+      let(:expected_tokens) { [TestUtils.token_double(1e-6)] }
       include_examples "token_matching"
     end
 
@@ -374,7 +374,7 @@ describe Hocon::Impl::Tokenizer do
 
     context "tokenize slash comment after float" do
       let(:test_string) { "3.14//comment" }
-      let(:expected_tokens) { [TestUtils.token_float(3.14),
+      let(:expected_tokens) { [TestUtils.token_double(3.14),
                                TestUtils.token_comment_double_slash("comment")] }
 
       include_examples "token_matching"
@@ -382,7 +382,7 @@ describe Hocon::Impl::Tokenizer do
 
     context "tokenize hash comment after float" do
       let(:test_string) { "3.14#comment" }
-      let(:expected_tokens) { [TestUtils.token_float(3.14),
+      let(:expected_tokens) { [TestUtils.token_double(3.14),
                                TestUtils.token_comment_hash("comment")] }
 
       include_examples "token_matching"
@@ -696,7 +696,7 @@ describe Hocon::Impl::Tokenizer do
                                TestUtils.token_string("foo"),
                                TestUtils.token_string("bar"),
                                TestUtils.token_true,
-                               TestUtils.token_float(3.14),
+                               TestUtils.token_double(3.14),
                                TestUtils.token_false,
                                TestUtils.token_int(42),
                                TestUtils.token_null,
@@ -735,7 +735,7 @@ describe Hocon::Impl::Tokenizer do
                                TestUtils.token_unquoted(" "),
                                TestUtils.token_true,
                                TestUtils.token_unquoted(" "),
-                               TestUtils.token_float(3.14),
+                               TestUtils.token_double(3.14),
                                TestUtils.token_unquoted(" "),
                                TestUtils.token_false,
                                TestUtils.token_unquoted(" "),
@@ -780,7 +780,7 @@ describe Hocon::Impl::Tokenizer do
                                TestUtils.token_unquoted("   "),
                                TestUtils.token_true,
                                TestUtils.token_unquoted("   "),
-                               TestUtils.token_float(3.14),
+                               TestUtils.token_double(3.14),
                                TestUtils.token_unquoted("   "),
                                TestUtils.token_false,
                                TestUtils.token_unquoted("   "),

@@ -77,9 +77,9 @@ end
 
 describe "ConfigFloat equality" do
   context "different ConfigFloats with the same value should be equal" do
-    a = TestUtils.float_value(3.14)
-    same_as_a = TestUtils.float_value(3.14)
-    b = TestUtils.float_value(4.14)
+    a = TestUtils.double_value(3.14)
+    same_as_a = TestUtils.double_value(3.14)
+    b = TestUtils.double_value(4.14)
 
     context "a equals a" do
       let(:first_object) { a }
@@ -103,32 +103,32 @@ end
 
 describe "ConfigFloat and ConfigInt equality" do
   context "different ConfigInts with the same value should be equal" do
-    float_val = TestUtils.float_value(3.0)
+    double_val = TestUtils.double_value(3.0)
     int_value = TestUtils.int_value(3)
-    float_value_b = TestUtils.float_value(4.0)
-    int_value_b = TestUtils.float_value(4)
+    double_value_b = TestUtils.double_value(4.0)
+    int_value_b = TestUtils.double_value(4)
 
-    context "int equals float" do
-      let(:first_object) { float_val }
+    context "int equals double" do
+      let(:first_object) { double_val }
       let(:second_object) { int_value }
       include_examples "object_equality"
     end
 
-    context "ConfigFloat made from int equals float" do
-      let(:first_object) { float_value_b }
+    context "ConfigFloat made from int equals double" do
+      let(:first_object) { double_value_b }
       let(:second_object) { int_value_b }
       include_examples "object_equality"
     end
 
     context "3 doesn't equal 4.0" do
       let(:first_object) { int_value }
-      let(:second_object) { float_value_b }
+      let(:second_object) { double_value_b }
       include_examples "object_inequality"
     end
 
     context "4.0 doesn't equal 3.0" do
       let(:first_object) { int_value_b }
-      let(:second_object) { float_val }
+      let(:second_object) { double_val }
       include_examples "object_inequality"
     end
   end
@@ -399,7 +399,7 @@ describe "Values' to_s methods" do
 
   specify "to_s doesn't throw error" do
     TestUtils.int_value(10).to_s
-    TestUtils.float_value(3.14).to_s
+    TestUtils.double_value(3.14).to_s
     TestUtils.string_value("hi").to_s
     TestUtils.null_value.to_s
     TestUtils.bool_value(true).to_s
