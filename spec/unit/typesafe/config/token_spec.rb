@@ -34,14 +34,14 @@ describe Hocon::Impl::Token do
       include_examples "object_equality"
     end
 
-    context "int and float of the same value" do
+    context "int and double of the same value" do
       let(:first_object) { TestUtils.token_int(10) }
-      let(:second_object) { TestUtils.token_float(10.0) }
+      let(:second_object) { TestUtils.token_double(10.0) }
 
       include_examples "object_equality"
     end
 
-    context "float tokens" do
+    context "double tokens" do
       let(:first_object) { TestUtils.token_int(3.14) }
       let(:second_object) { TestUtils.token_int(3.14) }
 
@@ -103,7 +103,7 @@ describe Hocon::Impl::Token do
       include_examples "object_inequality"
     end
 
-    context "float tokens" do
+    context "double tokens" do
       let(:first_object) { TestUtils.token_int(3.14) }
       let(:second_object) { TestUtils.token_int(4.14) }
 
@@ -159,9 +159,9 @@ describe Hocon::Impl::Token do
       include_examples "object_inequality"
     end
 
-    context "int and float of slightly different values" do
+    context "int and double of slightly different values" do
       let(:first_object) { TestUtils.token_int(10) }
-      let(:second_object) { TestUtils.token_float(10.000001) }
+      let(:second_object) { TestUtils.token_double(10.000001) }
 
       include_examples "object_inequality"
     end
@@ -174,7 +174,7 @@ describe Hocon::Impl::Token do
       TestUtils.token_true.to_s
       TestUtils.token_false.to_s
       TestUtils.token_int(42).to_s
-      TestUtils.token_float(3.14).to_s
+      TestUtils.token_double(3.14).to_s
       TestUtils.token_null.to_s
       TestUtils.token_unquoted("foo").to_s
       TestUtils.token_string("bar").to_s

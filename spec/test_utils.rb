@@ -5,6 +5,7 @@ require 'spec_helper'
 require 'rspec'
 require 'hocon/impl/config_reference'
 require 'hocon/impl/substitution_expression'
+require 'hocon/impl/path_parser'
 
 module TestUtils
   Tokens = Hocon::Impl::Tokens
@@ -271,8 +272,8 @@ module TestUtils
     Tokens.new_string(fake_origin, value, value)
   end
 
-  def self.token_float(value)
-    Tokens.new_float(fake_origin, value, nil)
+  def self.token_double(value)
+    Tokens.new_double(fake_origin, value, nil)
   end
 
   def self.token_int(value)
@@ -313,7 +314,7 @@ module TestUtils
     ConfigInt.new(fake_origin, value, nil)
   end
 
-  def self.float_value(value)
+  def self.double_value(value)
     ConfigFloat.new(fake_origin, value, nil)
   end
 
@@ -486,10 +487,10 @@ shared_examples_for "path_render_test" do
   end
 
   it "should find the path equal to the parsed expected text" do
-    expect(Hocon::Impl::Parser.parse_path(expected)).to eq(path)
+    expect(Hocon::Impl::PathParser.parse_path(expected)).to eq(path)
   end
 
   it "should find the path equal to the parsed text that came from the rendered path" do
-    expect(Hocon::Impl::Parser.parse_path(path.render)).to eq(path)
+    expect(Hocon::Impl::PathParser.parse_path(path.render)).to eq(path)
   end
 end
