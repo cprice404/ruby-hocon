@@ -295,11 +295,10 @@ module TestUtils
 
       # ParseTest.from_s("a = [], a += b"), # += operator with previous init
       # ParseTest.from_s("{ a = [], a += 10 }"), # += in braces object with previous init
-      # ParseTest.from_s("a += b"), # += operator without previous init
+
+
+      ParseTest.from_s("a += b"), # += operator without previous init
       ParseTest.from_s("{ a += 10 }"), # += in braces object without previous init
-
-
-
       ParseTest.from_s("[ 10e3e3 ]"), # two exponents. this should parse to a number plus string "e3"
       ParseTest.from_s("[ 1-e3 ]"), # malformed number should end up as a string instead
       ParseTest.from_s("[ 1.0.0 ]"), # two decimals, should end up as a string
