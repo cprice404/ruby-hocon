@@ -8,8 +8,10 @@ require 'hocon/impl/abstract_config_object'
 require 'forwardable'
 require 'hocon/impl/unsupported_operation_error'
 require 'hocon/impl/resolve_result'
+require 'hocon/impl/container'
 
 class Hocon::Impl::SimpleConfigList < Hocon::Impl::AbstractConfigValue
+  include Hocon::Impl::Container
   extend Forwardable
 
   ResolveStatus = Hocon::Impl::ResolveStatus

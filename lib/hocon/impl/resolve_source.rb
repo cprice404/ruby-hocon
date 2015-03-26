@@ -4,6 +4,7 @@ require 'hocon'
 require 'hocon/config_error'
 require 'hocon/impl'
 require 'hocon/impl/config_impl'
+require 'hocon/impl/container'
 
 class Hocon::Impl::ResolveSource
 
@@ -168,8 +169,8 @@ class Hocon::Impl::ResolveSource
   # replacement may be null to delete
   def replace_within_current_parent(old, replacement)
     if Hocon::Impl::ConfigImpl.trace_substitution_enabled
-      Hocon::Impl::ConfigImpl.trace("replaceWithinCurrentParent old " + old + "@" + old.hash +
-                                        " replacement " + replacement + "@" + old.hash + " in " + self)
+      Hocon::Impl::ConfigImpl.trace("replaceWithinCurrentParent old #{old}@#{old.hash}" +
+                                        " replacement #{replacement}@#{old.hash} in #{self}")
     end
     if old.equal?(replacement)
       self

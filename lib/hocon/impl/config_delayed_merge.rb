@@ -46,11 +46,15 @@ class Hocon::Impl::ConfigDelayedMerge < Hocon::Impl::AbstractConfigValue
     raise Hocon::ConfigError::ConfigNotResolvedError.new(error_message, nil)
   end
 
-  def resolve_substitution(context, source)
-    self.class.resolve_substitution(self, stack, context, source)
+  def resolve_substitutions(context, source)
+    self.class.resolve_substitutions(self, stack, context, source)
   end
 
-  def self.resolve_substitution(context, source, replaceable = self, stack = @stack)
+  def self.resolve_substitutions(replaceable, stack, context, source)
+    $stderr.puts "CDM resolve_substitution: replaceable: #{replaceable}"
+    $stderr.puts "\tstack: #{stack}"
+    $stderr.puts "\tcontext: #{context}"
+    $stderr.puts "\tsource: #{source}"
     if ConfigImpl.trace_substitution_enabled
       ConfigImpl.trace("delayed merge stack has #{stack.size} items:", context.depth)
       count = 0
@@ -74,9 +78,9 @@ class Hocon::Impl::ConfigDelayedMerge < Hocon::Impl::AbstractConfigValue
 
       source_for_end = nil
 
-      if stack_end.is_a?(ReplaceableMergeStack)
+      if stack_end.is_a?(Hocon::Impl::ReplaceableMergeStack)
         raise ConfigBugOrBrokenError, "A delayed merge should not contain another one: #{replaceable}"
-      elsif stack_end.is_a?(Unmergeable)
+      elsif stack_end.is_a?(Hocon::Impl::Unmergeable)
         # the remainder could be any kind of value, including another
         # ConfigDelayedMerge
         remainder = replaceable.make_replacement(context, count + 1)
@@ -155,7 +159,7 @@ class Hocon::Impl::ConfigDelayedMerge < Hocon::Impl::AbstractConfigValue
 
   # static method also used by ConfigDelayedMergeObject; end may be null
   def self.make_replacement(context, stack, skipping)
-    sub_stack = stack.sub_list(skipping, stack.size)
+    sub_stack = stack.slice(skipping..stack.size)
 
     if sub_stack.empty?
       if ConfigImpl.trace_substitution_enabled

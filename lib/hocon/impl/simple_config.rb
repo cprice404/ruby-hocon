@@ -7,8 +7,9 @@ require 'hocon/impl/path'
 require 'hocon/impl/default_transformer'
 require 'hocon/impl/config_impl'
 require 'hocon/impl/resolve_context'
+require 'hocon/config_mergeable'
 
-class Hocon::Impl::SimpleConfig
+class Hocon::Impl::SimpleConfig < Hocon::ConfigMergeable
 
   ConfigMissingError = Hocon::ConfigError::ConfigMissingError
   ConfigNotResolvedError = Hocon::ConfigError::ConfigNotResolvedError

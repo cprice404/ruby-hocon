@@ -8,9 +8,11 @@ require 'hocon/config_object'
 require 'hocon/impl/unmergeable'
 require 'hocon/impl/simple_config_origin'
 require 'hocon/impl/config_string'
+require 'hocon/impl/container'
 
 class Hocon::Impl::ConfigConcatenation < Hocon::Impl::AbstractConfigValue
   include Hocon::Impl::Unmergeable
+  include Hocon::Impl::Container
 
   SimpleConfigList = Hocon::Impl::SimpleConfigList
   ConfigObject = Hocon::ConfigObject

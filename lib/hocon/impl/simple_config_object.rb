@@ -169,6 +169,8 @@ class Hocon::Impl::SimpleConfigObject < Hocon::Impl::AbstractConfigObject
   end
 
   def replace_child(child, replacement)
+    $stderr.puts "SCO replace_child: #{child}"
+    $stderr.puts "\tself: #{self}"
     new_children = value.clone
     new_children.each do |k, v|
       if v == child
@@ -178,11 +180,11 @@ class Hocon::Impl::SimpleConfigObject < Hocon::Impl::AbstractConfigObject
           new_children.delete(k)
         end
 
-        self.class.new(origin, new_children, ResolveStatus.from_values(new_children.values),
+        return self.class.new(origin, new_children, ResolveStatus.from_values(new_children.values),
                        @ignores_fallbacks)
       end
     end
-    raise ConfigBugOrBroken, "SimpleConfigObject.replaceChild did not find #{child} in #{self}"
+    raise ConfigBugOrBrokenError, "SimpleConfigObject.replaceChild did not find #{child} in #{self}"
   end
 
   def has_descendant(descendant)
