@@ -2,6 +2,7 @@ require 'hocon/impl'
 require 'hocon/impl/replaceable_merge_stack'
 require 'hocon/impl/config_delayed_merge_object'
 require 'hocon/impl/config_impl'
+require 'hocon/impl/resolve_result'
 
 #
 # The issue here is that we want to first merge our stack of config files, and
@@ -11,11 +12,13 @@ require 'hocon/impl/config_impl'
 # stack of values that should be merged, and resolve the merge when we evaluate
 # substitutions.
 #
-class Hocon::Impl::ConfigDelayedMerge < Hocon::Impl::AbstractConfigValue
+class Hocon::Impl::ConfigDelayedMerge
   include Hocon::Impl::Unmergeable
   include Hocon::Impl::ReplaceableMergeStack
+  include Hocon::Impl::AbstractConfigValue
 
   ConfigImpl = Hocon::Impl::ConfigImpl
+  ResolveResult = Hocon::Impl::ResolveResult
 
   def initialize(origin, stack)
     super(origin)
@@ -51,10 +54,6 @@ class Hocon::Impl::ConfigDelayedMerge < Hocon::Impl::AbstractConfigValue
   end
 
   def self.resolve_substitutions(replaceable, stack, context, source)
-    $stderr.puts "CDM resolve_substitution: replaceable: #{replaceable}"
-    $stderr.puts "\tstack: #{stack}"
-    $stderr.puts "\tcontext: #{context}"
-    $stderr.puts "\tsource: #{source}"
     if ConfigImpl.trace_substitution_enabled
       ConfigImpl.trace("delayed merge stack has #{stack.size} items:", context.depth)
       count = 0
@@ -123,7 +122,7 @@ class Hocon::Impl::ConfigDelayedMerge < Hocon::Impl::AbstractConfigValue
 
       if ConfigImpl.trace_substitution_enabled
         ConfigImpl.trace("Resolving highest-priority item in delayed merge #{stack_end}" +
-                          " against #{source_for_end} endWasRemoved=#{(source != sourceForEnd)}")
+                          " against #{source_for_end} endWasRemoved=#{(source != source_for_end)}")
       end
 
       result = new_context.resolve(stack_end, source_for_end)
@@ -135,7 +134,7 @@ class Hocon::Impl::ConfigDelayedMerge < Hocon::Impl::AbstractConfigValue
           merged = resolved_end
         else
           if ConfigImpl.trace_substitution_enabled
-            ConfigImpl.trace("merging #{merged} with fallback #{resolvedEnd}",
+            ConfigImpl.trace("merging #{merged} with fallback #{resolved_end}",
                              new_context.depth + 1)
           end
           merged = merged.with_fallback(resolved_end)
@@ -294,7 +293,7 @@ class Hocon::Impl::ConfigDelayedMerge < Hocon::Impl::AbstractConfigValue
           sb << "\n"
         end
       end
-      self.indent(sb, indent, options)
+      Hocon::Impl::AbstractConfigValue.indent(sb, indent, options)
 
       if !at_key.nil?
         sb << Hocon::Impl::ConfigImplUtil.render_json_string(at_key)

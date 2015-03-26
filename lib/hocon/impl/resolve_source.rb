@@ -139,16 +139,16 @@ class Hocon::Impl::ResolveSource
 
   def replace_current_parent(old, replacement)
     if Hocon::Impl::ConfigImpl.trace_substitution_enabled
-      Hocon::Impl::ConfigImpl.trace("replaceCurrentParent old " + old + "@" + old.hash + " replacement " +
-                                        replacement + "@" + old.hash + " in " + self)
+      Hocon::Impl::ConfigImpl.trace("replaceCurrentParent old #{old}@#{old.hash} replacement " +
+                                        "#{replacement}@#{old.hash} in #{self}")
     end
     if old.equal?(replacement)
       self
     elsif @path_from_root != nil
-      new_path = replace(@path_from_root, old, replacement)
+      new_path = self.class.replace(@path_from_root, old, replacement)
       if Hocon::Impl::ConfigImpl.trace_substitution_enabled
-        Hocon::Impl::ConfigImpl.trace("replaced " + old + " with " + replacement + " in " + self)
-        Hocon::Impl::ConfigImpl.trace("path was: " + @path_from_root + " is now " + new_path)
+        Hocon::Impl::ConfigImpl.trace("replaced #{old} with #{replacement} in #{self}")
+        Hocon::Impl::ConfigImpl.trace("path was: #{@path_from_root} is now #{new_path}")
       end
       # if we end up nuking the root object itself, we replace it with an
       # empty root
@@ -161,7 +161,7 @@ class Hocon::Impl::ResolveSource
       if old.equal?(@root)
         return self.class.new(rust_must_be_obj(replacement))
       else
-        raise ConfigBugOrBrokenError.new("attempt to replace root " + root + " with " + replacement)
+        raise ConfigBugOrBrokenError.new("attempt to replace root #{root} with #{replacement}")
       end
     end
   end
@@ -182,8 +182,8 @@ class Hocon::Impl::ResolveSource
       if old.equal?(@root) && replacement.is_a?(Hocon::Impl::Container)
         return self.class.new(root_must_be_obj(replacement))
       else
-        raise ConfigBugOrBrokenError.new("replace in parent not possible " + old + " with " + replacement +
-                                             " in " + self)
+        raise ConfigBugOrBrokenError.new("replace in parent not possible #{old} with #{replacement}" +
+                                             " in #{self}")
       end
     end
   end

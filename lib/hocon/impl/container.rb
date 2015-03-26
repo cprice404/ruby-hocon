@@ -2,13 +2,14 @@
 
 require 'hocon/impl'
 require 'hocon/config_value'
-require 'hocon/impl/config_error'
+require 'hocon/config_error'
 
 # An AbstractConfigValue which contains other values. Java has no way to
 # express "this has to be an AbstractConfigValue also" other than making
 # AbstractConfigValue an interface which would be aggravating. But we can say
 # we are a ConfigValue.
-class Hocon::Impl::Container < Hocon::Impl::ConfigValue
+module Hocon::Impl::Container
+  include Hocon::ConfigValue
   #
   # Replace a child of this value. CAUTION if replacement is null, delete the
   # child, which may also delete the parent, or make the parent into a

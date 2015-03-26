@@ -18,7 +18,9 @@ require 'hocon/config_mergeable'
 # Also, this interface is likely to grow new methods over time, so third-party
 # implementations will break.
 #
-class Hocon::ConfigValue < ConfigMergeable
+module Hocon::ConfigValue
+  include Hocon::ConfigMergeable
+
   #
   # The origin of the value (file, line number, etc.), for debugging and
   # error messages.

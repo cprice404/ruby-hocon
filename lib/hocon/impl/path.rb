@@ -139,7 +139,10 @@ class Hocon::Impl::Path
     return count
   end
 
-  def sub_path(first_index, last_index)
+  def sub_path(first_index, last_index = nil)
+    if last_index.nil?
+      last_index = length - 1
+    end
     if last_index < first_index
       raise ConfigBugOrBrokenError.new("bad call to sub_path")
     end

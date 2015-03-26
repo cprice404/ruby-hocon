@@ -5,7 +5,9 @@ require 'hocon/impl/abstract_config_value'
 require 'hocon/config_value_type'
 require 'hocon/impl/config_impl_util'
 
-class Hocon::Impl::ConfigString < Hocon::Impl::AbstractConfigValue
+class Hocon::Impl::ConfigString
+  include Hocon::Impl::AbstractConfigValue
+
   ConfigImplUtil = Hocon::Impl::ConfigImplUtil
 
   attr_accessor :value

@@ -120,19 +120,8 @@ module TestUtils
       ParseTest.from_s("[${}]"), # empty substitution (no path)
       ParseTest.from_s("[${?}]"), # no path with ? substitution
       ParseTest.new(false, true, "[${ ?foo}]"), # space before ? not allowed
-
-
-
-      # TODO Commenting out the following 2 tests because we suspect missing code in SimpleConfigList/Object
-      # is screwing something up.
-      # Discovered the problem when I modified SimpleConfigOrigin::merge_origins and implemented
-      # SimpleConfigOrigins::merge_three
-      # ParseTest.from_s(%q|{ "a" : [1,2], "b" : y${a}z }|), # trying to interpolate an array in a string
-      # ParseTest.from_s(%q|{ "a" : { "c" : 2 }, "b" : y${a}z }|), # trying to interpolate an object in a string
-
-
-
-
+      ParseTest.from_s(%q|{ "a" : [1,2], "b" : y${a}z }|), # trying to interpolate an array in a string
+      ParseTest.from_s(%q|{ "a" : { "c" : 2 }, "b" : y${a}z }|), # trying to interpolate an object in a string
       ParseTest.from_s(%q|{ "a" : ${a} }|), # simple cycle
       ParseTest.from_s(%q|[ { "a" : 2, "b" : ${${a}} } ]|), # nested substitution
       ParseTest.from_s("[ = ]"), # = is not a valid token in unquoted text

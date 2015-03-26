@@ -6,8 +6,10 @@ require 'hocon/impl/abstract_config_value'
 require 'hocon/impl/resolve_source'
 require 'hocon/impl/resolve_result'
 
-class Hocon::Impl::ConfigReference < Hocon::Impl::AbstractConfigValue
+class Hocon::Impl::ConfigReference
   include Hocon::Impl::Unmergeable
+  include Hocon::Impl::AbstractConfigValue
+
   NotPossibleToResolve = Hocon::Impl::AbstractConfigValue::NotPossibleToResolve
   UnresolvedSubstitutionError = Hocon::ConfigError::UnresolvedSubstitutionError
 

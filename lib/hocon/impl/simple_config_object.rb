@@ -11,7 +11,8 @@ require 'set'
 require 'forwardable'
 
 
-class Hocon::Impl::SimpleConfigObject < Hocon::Impl::AbstractConfigObject
+class Hocon::Impl::SimpleConfigObject
+  include Hocon::Impl::AbstractConfigObject
   extend Forwardable
 
   ConfigBugOrBrokenError = Hocon::ConfigError::ConfigBugOrBrokenError
@@ -169,8 +170,6 @@ class Hocon::Impl::SimpleConfigObject < Hocon::Impl::AbstractConfigObject
   end
 
   def replace_child(child, replacement)
-    $stderr.puts "SCO replace_child: #{child}"
-    $stderr.puts "\tself: #{self}"
     new_children = value.clone
     new_children.each do |k, v|
       if v == child
@@ -249,7 +248,7 @@ class Hocon::Impl::SimpleConfigObject < Hocon::Impl::AbstractConfigObject
     new_ignores_fallbacks = fallback.ignores_fallbacks?
 
     if changed
-      Hocon::Impl::SimpleConfigObject.new(self.class.merge_origins([self, fallback]),
+      Hocon::Impl::SimpleConfigObject.new(Hocon::Impl::AbstractConfigObject.merge_origins([self, fallback]),
                                           merged, new_resolve_status,
                                           new_ignores_fallbacks)
     elsif (new_resolve_status != resolve_status) || (new_ignores_fallbacks != ignores_fallbacks?)
@@ -433,7 +432,7 @@ class Hocon::Impl::SimpleConfigObject < Hocon::Impl::AbstractConfigObject
         if options.origin_comments?
           lines = v.origin.description.split("\n")
           lines.each { |l|
-            self.class.indent(sb, indent + 1, options)
+            Hocon::Impl::AbstractConfigValue.indent(sb, indent + 1, options)
             sb << '#'
             unless l.empty?
               sb << ' '
@@ -444,7 +443,7 @@ class Hocon::Impl::SimpleConfigObject < Hocon::Impl::AbstractConfigObject
         end
         if options.comments?
           v.origin.comments.each do |comment|
-            self.class.indent(sb, inner_indent, options)
+            Hocon::Impl::AbstractConfigValue.indent(sb, inner_indent, options)
             sb << "#"
             if !comment.start_with?(" ")
               sb << " "
@@ -453,7 +452,7 @@ class Hocon::Impl::SimpleConfigObject < Hocon::Impl::AbstractConfigObject
             sb << "\n"
           end
         end
-        self.class.indent(sb, inner_indent, options)
+        Hocon::Impl::AbstractConfigValue.indent(sb, inner_indent, options)
         v.render_to_sb(sb, inner_indent, false, k.to_s, options)
 
         if options.formatted?
@@ -479,7 +478,7 @@ class Hocon::Impl::SimpleConfigObject < Hocon::Impl::AbstractConfigObject
         if options.formatted?
           sb << "\n" # put a newline back
           if outer_braces
-            self.class.indent(sb, indent, options)
+            Hocon::Impl::AbstractConfigValue.indent(sb, indent, options)
           end
         end
         sb << "}"

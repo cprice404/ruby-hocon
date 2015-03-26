@@ -45,7 +45,6 @@ describe "Config Parser" do
 
   context "valid_conf_works" do
     TestUtils.whitespace_variations(TestUtils::ValidConf, true).each do |valid|
-    # TestUtils::ValidConf.each do |valid|
       it "should successfully parse config string '#{valid.test}'" do
         our_ast = TestUtils.add_offending_json_to_exception("config-conf", valid.test) {
           parse(valid.test)

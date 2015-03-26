@@ -1,9 +1,10 @@
 require 'hocon/impl'
 require 'hocon/impl/unmergeable'
 
-class Hocon::Impl::ConfigDelayedMergeObject < Hocon::Impl::AbstractConfigObject
+class Hocon::Impl::ConfigDelayedMergeObject
   include Hocon::Impl::Unmergeable
   include Hocon::Impl::ReplaceableMergeStack
+  include Hocon::Impl::AbstractConfigObject
 
   def initialize(origin, stack)
     super(origin)

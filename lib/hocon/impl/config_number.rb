@@ -3,7 +3,8 @@
 require 'hocon/impl'
 require 'hocon/impl/abstract_config_value'
 
-class Hocon::Impl::ConfigNumber < Hocon::Impl::AbstractConfigValue
+class Hocon::Impl::ConfigNumber
+  include Hocon::Impl::AbstractConfigValue
   ## sigh... requiring these subclasses before this class
   ## is declared would cause an error.  Thanks, ruby.
   require 'hocon/impl/config_int'

@@ -16,7 +16,7 @@ require 'hocon/config_error'
 # interface is likely to grow new methods over time, so third-party
 # implementations will break.
 #
-class Hocon::ConfigMergeable
+module Hocon::ConfigMergeable
 #
 # Returns a new value computed by merging this value with another, with
 # keys in this value "winning" over the other one.

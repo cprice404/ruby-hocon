@@ -3,7 +3,9 @@
 require 'hocon/impl'
 require 'hocon/impl/abstract_config_value'
 
-class Hocon::Impl::ConfigBoolean < Hocon::Impl::AbstractConfigValue
+class Hocon::Impl::ConfigBoolean
+  include Hocon::Impl::AbstractConfigValue
+
   def initialize(origin, value)
     super(origin)
     @value = value

@@ -60,6 +60,10 @@ class Hocon::Impl::ResolveContext
     self.class.new(changed, @options, @restrict_to_child, @resolve_stack, @cycle_markers)
   end
 
+  def options
+    @options
+  end
+
   def is_restricted_to_child
     @restrict_to_child != nil
   end

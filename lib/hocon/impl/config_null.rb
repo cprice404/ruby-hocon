@@ -3,7 +3,8 @@
 require 'hocon/impl'
 require 'hocon/config_value_type'
 
-class Hocon::Impl::ConfigNull < Hocon::Impl::AbstractConfigValue
+class Hocon::Impl::ConfigNull
+  include Hocon::Impl::AbstractConfigValue
 
   def initialize(origin)
     super(origin)

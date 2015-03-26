@@ -159,7 +159,7 @@ class Hocon::Impl::ConfigImpl
       private
 
       TRACE_LOADS_ENABLED = false
-      TRACE_SUBSTITUTIONS_ENABLED = true
+      TRACE_SUBSTITUTIONS_ENABLED = false
     end
   end
 

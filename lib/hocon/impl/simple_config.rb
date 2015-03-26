@@ -9,7 +9,8 @@ require 'hocon/impl/config_impl'
 require 'hocon/impl/resolve_context'
 require 'hocon/config_mergeable'
 
-class Hocon::Impl::SimpleConfig < Hocon::ConfigMergeable
+class Hocon::Impl::SimpleConfig
+  include Hocon::ConfigMergeable
 
   ConfigMissingError = Hocon::ConfigError::ConfigMissingError
   ConfigNotResolvedError = Hocon::ConfigError::ConfigNotResolvedError

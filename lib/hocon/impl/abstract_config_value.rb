@@ -9,13 +9,16 @@ require 'hocon/impl/resolve_result'
 require 'hocon/impl/unmergeable'
 require 'hocon/impl/config_impl_util'
 require 'hocon/config_error'
+require 'hocon/config_value'
 
 ##
 ## Trying very hard to avoid a parent reference in config values; when you have
 ## a tree like this, the availability of parent() tends to result in a lot of
 ## improperly-factored and non-modular code. Please don't add parent().
 ##
-class Hocon::Impl::AbstractConfigValue
+module Hocon::Impl::AbstractConfigValue
+  include Hocon::ConfigValue
+
   ConfigImplUtil = Hocon::Impl::ConfigImplUtil
   ConfigBugOrBrokenError = Hocon::ConfigError::ConfigBugOrBrokenError
   ResolveStatus = Hocon::Impl::ResolveStatus
