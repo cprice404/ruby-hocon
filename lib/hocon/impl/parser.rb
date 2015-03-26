@@ -444,6 +444,7 @@ class Hocon::Impl::Parser
         raise Hocon::ConfigError::ConfigBugOrBrokenError,
               "Bug in parser; tried to get current path when at root"
       else
+        puts "Path type: #{@path_stack.class}"
         Path.new(@path_stack.descending_iterator)
       end
     end
@@ -819,11 +820,6 @@ class Hocon::Impl::Parser
           last_inside_equals = inside_equals
 
           key = path.first
-
-          # # for ruby: convert string keys to symbols
-          # if key.is_a?(String)
-          #   key = key
-          # end
 
           remaining = path.remainder
 
