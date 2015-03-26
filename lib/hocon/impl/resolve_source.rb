@@ -28,7 +28,7 @@ class Hocon::Impl::ResolveSource
   def find_in_object(obj, context, path)
     # resolve ONLY portions of the object which are along our path
     if Hocon::Impl::ConfigImpl.trace_substitution_enabled
-      Hocon::Impl::ConfigImpl.trace("*** finding '" + path + "' in " + obj)
+      Hocon::Impl::ConfigImpl.trace("*** finding '#{path}' in #{obj}")
     end
     restriction = context.restrict_to_child
     partially_resolved = context.restrict(path).resolve(obj, self.class.new(obj))
@@ -43,12 +43,12 @@ class Hocon::Impl::ResolveSource
 
   def lookup_subst(context, subst, prefix_length)
     if Hocon::Impl::ConfigImpl.trace_substitution_enabled
-      Hocon::Impl::ConfigImpl.trace("searching for " + subst, depth)
+      Hocon::Impl::ConfigImpl.trace("searching for #{subst}", context.depth)
     end
 
     if Hocon::Impl::ConfigImpl.trace_substitution_enabled
-      Hocon::Impl::ConfigImpl.trace(subst + " - looking up relative to file it occurred in",
-                                    depth)
+      Hocon::Impl::ConfigImpl.trace("#{subst} - looking up relative to file it occurred in",
+                                    context.depth)
     end
     # First we look up the full path, which means relative to the
     # included file if we were not a root file
@@ -81,7 +81,7 @@ class Hocon::Impl::ResolveSource
 
     if Hocon::Impl::ConfigImpl.trace_substitution_enabled
       Hocon::Impl::ConfigImpl.trace(
-          "resolved to " + result,
+          "resolved to #{result}",
           result.result.context.depth)
     end
 
@@ -188,7 +188,7 @@ class Hocon::Impl::ResolveSource
   end
 
   def to_s
-    "ResolveSource(root=" + @root + ", pathFromRoot=" + @path_from_root + ")"
+    "ResolveSource(root=#{@root}, pathFromRoot=#{@path_from_root})"
   end
 
   # a persistent list
@@ -240,10 +240,10 @@ class Hocon::Impl::ResolveSource
       to_append_value = self.reverse
       while to_append_value != nil
         sb << to_append_value.value.to_s
-        if to_append_value.next != nil
+        if to_append_value.next_node != nil
           sb << " <= "
         end
-        to_append_value = to_append_value.next
+        to_append_value = to_append_value.next_node
       end
       sb << "]"
       sb
@@ -273,7 +273,7 @@ class Hocon::Impl::ResolveSource
     end
 
     def to_s
-      "ResultWithPath(result=" + @result + ", pathFromRoot=" + @path_from_root + ")"
+      "ResultWithPath(result=#{@result}, pathFromRoot=#{@path_from_root})"
     end
   end
 
@@ -301,7 +301,7 @@ class Hocon::Impl::ResolveSource
     key = path.first
     remainder = path.remainder
     if Hocon::Impl::ConfigImpl.trace_substitution_enabled
-      Hocon::Impl::ConfigImpl.trace("*** looking up '" + key + "' in " + obj)
+      Hocon::Impl::ConfigImpl.trace("*** looking up '#{key}' in #{obj}")
     end
     v = obj.attempt_peek_with_partial_resolve(key)
     new_parents = parents == nil ? Node.new(obj) : parents.prepend(obj)

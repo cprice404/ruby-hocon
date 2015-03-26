@@ -156,12 +156,12 @@ class Hocon::Impl::SimpleConfigList < Hocon::Impl::AbstractConfigValue
   end
 
   def can_equal(other)
-    other.is_a?(SimpleConfigList)
+    other.is_a?(self.class)
   end
 
   def ==(other)
     # note that "origin" is deliberately NOT part of equality
-    if other.is_a?(SimpleConfigList)
+    if other.is_a?(self.class)
       # optimization to avoid unwrapped() for two ConfigList
       can_equal(other) &&
           (value.equal?(other.value) || (value == other.value))

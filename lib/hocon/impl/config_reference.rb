@@ -32,15 +32,15 @@ class Hocon::Impl::ConfigReference < Hocon::Impl::AbstractConfigValue
       if result_with_path.result.value != nil
         if Hocon::Impl::ConfigImpl.trace_substitution_enabled
           Hocon::Impl::ConfigImpl.trace(
-              "recursively resolving #{resultWithPath} which was the resolution of #{expr} against #{source}",
-              depth)
+              "recursively resolving #{result_with_path} which was the resolution of #{expr} against #{source}",
+              context.depth)
         end
 
         recursive_resolve_source = Hocon::Impl::ResolveSource.new(
             result_with_path.path_from_root.last, result_with_path.path_from_root)
 
         if Hocon::Impl::ConfigImpl.trace_substitution_enabled
-          Hocon::Impl::ConfigImpl.trace("will recursively resolve against #{recursive_resolve_source}", depth)
+          Hocon::Impl::ConfigImpl.trace("will recursively resolve against #{recursive_resolve_source}", context.depth)
         end
 
         result = new_context.resolve(result_with_path.result.value,

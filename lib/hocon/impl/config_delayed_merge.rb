@@ -310,9 +310,12 @@ class Hocon::Impl::ConfigDelayedMerge < Hocon::Impl::AbstractConfigValue
     end
 
     # chop comma or newline
-    sb.string = sb.string[0...-1]
+    # couldn't figure out a better way to chop characters off of the end of
+    # the StringIO.  This relies on making sure that, prior to returning the
+    # final string, we take a substring that ends at sb.pos.
+    sb.pos = sb.pos - 1
     if options.formatted
-      sb.string = sb.string[0...-1]
+      sb.pos = sb.pos - 1
       sb << "\n"
     end
 

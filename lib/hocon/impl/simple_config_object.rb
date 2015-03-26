@@ -567,3 +567,4 @@ class Hocon::Impl::SimpleConfigObject < Hocon::Impl::AbstractConfigObject
         {})
   end
 end
+

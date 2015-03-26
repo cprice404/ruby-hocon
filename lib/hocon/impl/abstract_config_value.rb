@@ -160,6 +160,7 @@ class Hocon::Impl::AbstractConfigValue
   def construct_delayed_merge(origin, stack)
     # TODO: this might not work because ConfigDelayedMerge inherits
     # from this class, so we can't `require` it from this file
+    require 'hocon/impl/config_delayed_merge'
     Hocon::Impl::ConfigDelayedMerge.new(origin, stack)
   end
 
