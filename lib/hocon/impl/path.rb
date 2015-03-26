@@ -10,23 +10,6 @@ class Hocon::Impl::Path
   ConfigBugOrBrokenError = Hocon::ConfigError::ConfigBugOrBrokenError
   ConfigImplUtil = Hocon::Impl::ConfigImplUtil
 
-  # this doesn't have a very precise meaning, just to reduce
-  # noise from quotes in the rendered path for average cases
-  def self.has_funky_chars?(s)
-    length = s.length
-    if length == 0
-      return false
-    end
-
-    s.chars.each do |c|
-      unless (c =~ /[[:alnum:]]/) || (c == '-') || (c == '_')
-        return true
-      end
-    end
-
-    false
-  end
-
   def initialize(first, remainder)
     # first: String, remainder: Path
 
@@ -156,6 +139,96 @@ class Hocon::Impl::Path
     return count
   end
 
+  def sub_path(first_index, last_index)
+    if last_index < first_index
+      raise ConfigBugOrBrokenError.new("bad call to sub_path")
+    end
+    from = sub_path_to_end(first_index)
+    pb = Hocon::Impl::PathBuilder.new
+    count = last_index - first_index
+    while count > 0 do
+      count -= 1
+      pb.append_key(from.first)
+      from = from.remainder
+      if from.nil?
+        raise ConfigBugOrBrokenError.new("sub_path last_index out of range #{last_index}")
+      end
+    end
+    pb.result
+  end
+
+  # translated from `subPath(int removeFromFront)` upstream
+  def sub_path_to_end(remove_from_front)
+    count = remove_from_front
+    p = self
+    while (not p.nil?) && count > 0 do
+      count -= 1
+      p = p.remainder
+    end
+    p
+  end
+
+  def starts_with(other)
+    my_remainder = self
+    other_remainder = other
+    if other_remainder.length <= my_remainder.length
+      while ! other_remainder.nil?
+        if ! (other_remainder.first == my_remainder.first)
+          return false
+        end
+        my_remainder = my_remainder.remainder
+        other_remainder = other_remainder.remainder
+      end
+      true
+    end
+    false
+  end
+
+  def ==(other)
+    if other.is_a? Hocon::Impl::Path
+      that = other
+      first == that.first && ConfigImplUtil.equals_handling_nil?(remainder, that.remainder)
+    else
+      false
+    end
+  end
+
+  def hash
+    remainder_hash = remainder.nil? ? 0 : remainder.hash
+
+    41 * (41 + first.hash) + remainder_hash
+  end
+
+  # this doesn't have a very precise meaning, just to reduce
+  # noise from quotes in the rendered path for average cases
+  def self.has_funky_chars?(s)
+    length = s.length
+    if length == 0
+      return false
+    end
+
+    s.chars.each do |c|
+      unless (c =~ /[[:alnum:]]/) || (c == '-') || (c == '_')
+        return true
+      end
+    end
+
+    false
+  end
+
+  def append_to_string_builder(sb)
+    if self.class.has_funky_chars?(@first) || @first.empty?
+      sb << ConfigImplUtil.render_json_string(@first)
+    else
+      sb << @first
+    end
+
+    unless @remainder.nil?
+      sb << "."
+      @remainder.append_to_string_builder(sb)
+    end
+  end
+
   def to_s
     sb = StringIO.new
     sb << "Path("
@@ -175,47 +248,6 @@ class Hocon::Impl::Path
     sb.string
   end
 
-  def append_to_string_builder(sb)
-    if self.class.has_funky_chars?(@first) || @first.empty?
-      sb << ConfigImplUtil.render_json_string(@first)
-    else
-      sb << @first
-    end
-
-    unless @remainder.nil?
-      sb << "."
-      @remainder.append_to_string_builder(sb)
-    end
-  end
-
-  def sub_path_to_end(remove_from_front)
-    count = remove_from_front
-    p = self
-    while (not p.nil?) && count > 0 do
-      count -= 1
-      p = p.remainder
-    end
-    p
-  end
-
-  def sub_path(first_index, last_index)
-    if last_index < first_index
-      raise ConfigBugOrBrokenError.new("bad call to sub_path")
-    end
-    from = sub_path_to_end(first_index)
-    pb = Hocon::Impl::PathBuilder.new
-    count = last_index - first_index
-    while count > 0 do
-      count -= 1
-      pb.append_key(from.first)
-      from = from.remainder
-      if from.nil?
-        raise ConfigBugOrBrokenError.new("sub_path last_index out of range #{last_index}")
-      end
-    end
-    pb.result
-  end
-
   def self.new_key(key)
     return self.new(key, nil)
   end
@@ -224,18 +256,4 @@ class Hocon::Impl::Path
     Hocon::Impl::PathParser.parse_path(path)
   end
 
-  def ==(other)
-    if other.is_a? Hocon::Impl::Path
-      that = other
-      first == that.first && ConfigImplUtil.equals_handling_nil?(remainder, that.remainder)
-    else
-      false
-    end
-  end
-
-  def hash
-    remainder_hash = remainder.nil? ? 0 : remainder.hash
-
-    41 * (41 + first.hash) + remainder_hash
-  end
 end
