@@ -7,11 +7,13 @@ require 'hocon/config_error'
 require 'hocon/impl/abstract_config_object'
 require 'forwardable'
 require 'hocon/impl/unsupported_operation_error'
+require 'hocon/impl/resolve_result'
 
 class Hocon::Impl::SimpleConfigList < Hocon::Impl::AbstractConfigValue
   extend Forwardable
 
   ResolveStatus = Hocon::Impl::ResolveStatus
+  ResolveResult = Hocon::Impl::ResolveResult
   ConfigBugOrBrokenError = Hocon::ConfigError::ConfigBugOrBrokenError
 
   def initialize(origin, value, status = ResolveStatus.from_values(value))

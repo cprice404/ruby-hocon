@@ -444,8 +444,7 @@ class Hocon::Impl::Parser
         raise Hocon::ConfigError::ConfigBugOrBrokenError,
               "Bug in parser; tried to get current path when at root"
       else
-        puts "Path type: #{@path_stack.class}"
-        Path.new(@path_stack.descending_iterator)
+        Path.from_path_list(@path_stack.reverse)
       end
     end
 
