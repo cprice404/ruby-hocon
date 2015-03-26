@@ -4,6 +4,11 @@ require 'hocon/impl'
 require 'hocon/config_value_type'
 
 class Hocon::Impl::ConfigNull < Hocon::Impl::AbstractConfigValue
+
+  def initialize(origin)
+    super(origin)
+  end
+
   def value_type
     Hocon::ConfigValueType::NULL
   end
@@ -20,8 +25,8 @@ class Hocon::Impl::ConfigNull < Hocon::Impl::AbstractConfigValue
     sb << "null"
   end
 
-  def newCopy(origin)
-    ConfigNull.new(origin)
+  def new_copy(origin)
+    self.class.new(origin)
   end
 
 end

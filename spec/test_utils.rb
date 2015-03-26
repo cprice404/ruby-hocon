@@ -189,16 +189,8 @@ module TestUtils
       ParseTest.from_s(%q|{"a":{"a":{"a":{"a":{"a":{"a":{"a":{"a":42}}}}}}}}|),
       ParseTest.from_s("[ \"#comment\" ]"), # quoted # comment
       ParseTest.from_s("[ \"//comment\" ]"), # quoted // comment
-
-
-      # TODO: this test fails due to the 'null' value, which Kevin says he has a
-      # fix for, so, leaving it commented out for now
-      # # this long one is mostly to test rendering
-      # ParseTest.from_s(%q|{ "foo" : { "bar" : "baz", "woo" : "w00t" }, "baz" : { "bar" : "baz", "woo" : [1,2,3,4], "w00t" : true, "a" : false, "b" : 3.14, "c" : null } }|),
-
-
-
-
+      # this long one is mostly to test rendering
+      ParseTest.from_s(%q|{ "foo" : { "bar" : "baz", "woo" : "w00t" }, "baz" : { "bar" : "baz", "woo" : [1,2,3,4], "w00t" : true, "a" : false, "b" : 3.14, "c" : null } }|),
       ParseTest.from_s("{}"),
       ParseTest.from_pair(true, "[ 10e+3 ]") # "+" in a number (lift doesn't handle))
   ]
