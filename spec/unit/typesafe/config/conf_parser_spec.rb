@@ -13,6 +13,7 @@ require 'hocon/config_list'
 require 'hocon/impl/config_reference'
 require 'hocon/impl/path_parser'
 require 'hocon/impl/parseable'
+require 'hocon/config_factory'
 
 def parse_without_resolving(s)
   options = Hocon::ConfigParseOptions.defaults.
@@ -702,5 +703,120 @@ describe "Config Parser" do
     # nodes, not to parent objects.
     assert_comments_at_path([], conf8, "x")
     assert_comments_at_path([], conf8, "a")
+  end
+
+
+  it "includeFile" do
+    conf = Hocon::ConfigFactory.parse_string("include file(" +
+              TestUtils.json_quoted_resource_file("test01") + ")")
+
+    # should have loaded conf, json... skipping properties
+    expect(conf.get_int("ints.fortyTwo")).to eq(42)
+    expect(conf.get_int("fromJson1")).to eq(1)
+  end
+
+  it "includeFileWithExtension" do
+    conf = Hocon::ConfigFactory.parse_string("include file(" +
+              TestUtils.json_quoted_resource_file("test01.conf") + ")")
+
+    expect(conf.get_int("ints.fortyTwo")).to eq(42)
+    expect(conf.has_path?("fromJson1")).to eq(false)
+    expect(conf.has_path?("fromProps.abc")).to eq(false)
+  end
+
+  it "includeFileWhitespaceInsideParens" do
+    conf = Hocon::ConfigFactory.parse_string("include file(  \n  " +
+              TestUtils.json_quoted_resource_file("test01") + "  \n  )")
+
+    # should have loaded conf, json... NOT properties
+    expect(conf.get_int("ints.fortyTwo")).to eq(42)
+    expect(conf.get_int("fromJson1")).to eq(1)
+  end
+
+  it "includeFileNoWhitespaceOutsideParens" do
+    e = TestUtils.intercept(Hocon::ConfigError::ConfigParseError) {
+      Hocon::ConfigFactory.parse_string("include file (" +
+        TestUtils.json_quoted_resource_file("test01") + ")")
+    }
+    expect(e.message.include?("expecting include parameter")).to eq(true)
+  end
+
+  it "includeFileNotQuoted" do
+    # this test cannot work on Windows
+    f = TestUtils.resource_file("test01")
+    if (f.to_s.include?("\\"))
+      $stderr.puts("includeFileNotQuoted test skipped on Windows")
+    else
+      e = TestUtils.intercept(Hocon::ConfigError::ConfigParseError) {
+        Hocon::ConfigFactory.parse_string("include file(" + f + ")")
+      }
+      expect(e.message.include?("expecting include parameter")).to eq(true)
+    end
+  end
+
+  it "includeFileNotQuotedAndSpecialChar" do
+    f = TestUtils.resource_file("test01")
+    if (f.to_s.include?("\\"))
+      $stderr.puts("includeFileNotQuoted test skipped on Windows")
+    else
+      e = TestUtils.intercept(Hocon::ConfigError::ConfigParseError) {
+        Hocon::ConfigFactory.parse_string("include file(:" + f + ")")
+      }
+      expect(e.message.include?("expecting a quoted string")).to eq(true)
+    end
+
+  end
+
+  it "includeFileUnclosedParens" do
+    e = TestUtils.intercept(Hocon::ConfigError::ConfigParseError) {
+      Hocon::ConfigFactory.parse_string("include file(" + TestUtils.json_quoted_resource_file("test01") + " something")
+    }
+    expect(e.message.include?("expecting a close paren")).to eq(true)
+  end
+
+  # Skipping 'includeURLBasename' because we don't support URLs
+  # Skipping 'includeURLWithExtension' because we don't support URLs
+  # Skipping 'includeURLInvalid' because we don't support URLs
+  # Skipping 'includeResources' because we don't support classpath resources
+  # Skipping 'includeURLHeuristically' because we don't support URLs
+  # Skipping 'includeURLBasenameHeuristically' because we don't support URLs
+
+  it "acceptBOMStartingFile" do
+    skip("BOM not parsing properly yet") do
+      # BOM at start of file should be ignored
+      conf = Hocon::ConfigFactory.parse_file(TestUtils.resource_file("bom.conf"))
+      expect(conf.get_string("foo")).to eq("bar")
+    end
+  end
+
+  it "acceptBOMStartOfStringConfig" do
+    skip("BOM not parsing properly yet") do
+      # BOM at start of file is just whitespace, so ignored
+      conf = Hocon::ConfigFactory.parse_string("\uFEFFfoo=bar")
+      expect(conf.get_string("foo")).to eq("bar")
+    end
+  end
+
+  it "acceptBOMInStringValue" do
+    # BOM inside quotes should be preserved, just as other whitespace would be
+    conf = Hocon::ConfigFactory.parse_string("foo=\"\uFEFF\uFEFF\"")
+    expect(conf.get_string("foo")).to eq("\uFEFF\uFEFF")
+  end
+
+  it "acceptBOMWhitespace" do
+    skip("BOM not parsing properly yet") do
+      # BOM here should be treated like other whitespace (ignored, since no quotes)
+      conf = Hocon::ConfigFactory.parse_string("foo= \uFEFFbar\uFEFF")
+      expect(conf.get_string("foo")).to eq("bar")
+    end
+  end
+
+  it "acceptMultiPeriodNumericPath" do
+    conf1 = Hocon::ConfigFactory.parse_string("0.1.2.3=foobar1")
+    expect(conf1.get_string("0.1.2.3")).to eq("foobar1")
+    conf2 = Hocon::ConfigFactory.parse_string("0.1.2.3.ABC=foobar2")
+    expect(conf2.get_string("0.1.2.3.ABC")).to eq("foobar2")
+    conf3 = Hocon::ConfigFactory.parse_string("ABC.0.1.2.3=foobar3")
+    expect(conf3.get_string("ABC.0.1.2.3")).to eq("foobar3")
   end
 end

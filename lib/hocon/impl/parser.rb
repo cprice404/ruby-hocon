@@ -640,22 +640,22 @@ class Hocon::Impl::Parser
 
         # quoted string
         name = nil
-        if Tokens.value_with_type?(t.token, ConfigValueType::String)
-          name = Tokens.get_value(t.token).unwrapped
+        if Tokens.value_with_type?(t.token, ConfigValueType::STRING)
+          name = Tokens.value(t.token).unwrapped
         else
-          raise parse_error("expecting a quoted string inside file(), classpath(), or url(), rather than: " + t)
+          raise parse_error("expecting a quoted string inside file(), classpath(), or url(), rather than: #{t}")
         end
 
         # skip space after string, inside parens
         t = next_token_ignoring_newline
-        while unquoted_whitespace(t.token)
+        while unquoted_whitespace?(t.token)
           t = next_token_ignoring_newline
         end
 
         if Tokens.unquoted_text?(t.token) && (Tokens.unquoted_text(t.token) == ")")
           # OK, close paren
         else
-          raise parse_error("expecting a close parentheses ')' here, not: " + t)
+          raise parse_error("expecting a close parentheses ')' here, not: #{t}")
         end
 
         if kind == "url("
@@ -663,11 +663,11 @@ class Hocon::Impl::Parser
           begin
             url = Hocon::Impl::Url.new(name)
           rescue Hocon::Impl::Url::MalformedUrlError => e
-            raise parse_error("include url() specifies an invalid URL: " + name, e)
+            raise parse_error("include url() specifies an invalid URL: #{name}", e)
           end
           obj = @includer.include_url(@include_context, url)
         elsif kind == "file("
-          obj = @includer.include_file(@include_context, File.new(name))
+          obj = @includer.include_file(@include_context, name)
         elsif kind == "classpath("
           obj = @includer.include_resources(@include_context, name)
         else
@@ -696,11 +696,11 @@ class Hocon::Impl::Parser
 
       obj.key_set.each do |key|
         v = obj.get(key)
-        existing = values.get(key)
+        existing = values[key]
         if !(existing.nil?)
           values.put(key, v.with_fallback(existing))
         else
-          values.put(key, v)
+          values[key] = v
         end
       end
     end

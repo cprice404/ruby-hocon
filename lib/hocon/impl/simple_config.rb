@@ -224,7 +224,7 @@ class Hocon::Impl::SimpleConfig
     l
   end
 
-  def has_path(path_expression)
+  def has_path?(path_expression)
     path = Path.new_path(path_expression)
     begin
       peeked = @object.peek_path(path)

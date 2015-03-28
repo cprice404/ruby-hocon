@@ -33,11 +33,11 @@ describe Hocon::Impl::SimpleConfig do
   shared_examples_for "has_path_check" do
     let(:input_file) { "#{FIXTURE_DIR}/parse_render/#{example[:name]}/input.conf" }
     it "should return true if a path exists" do
-      expect(conf.has_path(setting)).to eql(true)
+      expect(conf.has_path?(setting)).to eql(true)
     end
 
     it "should return false if a path does not exist" do
-      expect(conf.has_path(false_setting)).to eq(false)
+      expect(conf.has_path?(false_setting)).to eq(false)
     end
   end
 
@@ -68,7 +68,7 @@ describe Hocon::Impl::SimpleConfig do
     let(:input_file) { "#{FIXTURE_DIR}/parse_render/#{example[:name]}/input.conf" }
     it "should remove desired setting" do
       modified_conf = conf.without_path(setting_to_remove)
-      expect(modified_conf.has_path(setting_to_remove)).to be false
+      expect(modified_conf.has_path?(setting_to_remove)).to be false
     end
   end
 

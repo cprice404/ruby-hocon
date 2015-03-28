@@ -6,6 +6,7 @@ require 'rspec'
 require 'hocon/impl/config_reference'
 require 'hocon/impl/substitution_expression'
 require 'hocon/impl/path_parser'
+require 'hocon/impl/config_impl_util'
 
 module TestUtils
   Tokens = Hocon::Impl::Tokens
@@ -494,6 +495,20 @@ module TestUtils
     # the parser; in the test suite we are often testing the parser,
     # so we don't want to use the parser to build the expected result.
     Path.from_string_list(elements)
+  end
+
+  RESOURCE_DIR = "spec/fixtures/test_utils/resources"
+
+  def self.resource_file(filename)
+    File.join(RESOURCE_DIR, filename)
+  end
+
+  def self.json_quoted_resource_file(filename)
+    quote_json_string(resource_file(filename).to_s)
+  end
+
+  def self.quote_json_string(s)
+    Hocon::Impl::ConfigImplUtil.render_json_string(s)
   end
 
   ##################

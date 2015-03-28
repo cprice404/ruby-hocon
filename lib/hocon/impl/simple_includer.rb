@@ -143,8 +143,8 @@ class Hocon::Impl::SimpleIncluder < Hocon::Impl::FullIncluder
       obj = SimpleConfigObject.empty(SimpleConfigOrigin.new_simple(name))
       if syntax.nil? || (syntax == Hocon::ConfigSyntax::CONF)
         begin
-          obj = conf_handle.parse(conf_handle.options.set_allow_missing(false)).
-                  set_syntax(Hocon::ConfigSyntax::CONF)
+          obj = conf_handle.parse(conf_handle.options.set_allow_missing(false).
+                  set_syntax(Hocon::ConfigSyntax::CONF))
           got_something = true
         rescue ConfigIOError => e
           fails << e

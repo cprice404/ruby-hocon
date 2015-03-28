@@ -508,6 +508,10 @@ class Hocon::Impl::SimpleConfigObject
     true
   end
 
+  def get(key)
+    @value[key]
+  end
+
   def self.map_hash(m)
     # the keys have to be sorted, otherwise we could be equal
     # to another map but have a different hashcode.

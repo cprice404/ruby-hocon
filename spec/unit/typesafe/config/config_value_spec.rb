@@ -591,32 +591,32 @@ describe "AbstractConfigObject#merge_origins" do
   end
 end
 
-describe "SimpleConfig#has_path" do
+describe "SimpleConfig#has_path?" do
   specify "should work in various contexts" do
     empty = TestUtils.parse_config("{}")
 
-    expect(empty.has_path("foo")).to be_falsey
+    expect(empty.has_path?("foo")).to be_falsey
 
     object = TestUtils.parse_config("a=null, b.c.d=11, foo=bar")
 
     # returns true for the non-null values
-    expect(object.has_path("foo")).to be_truthy
-    expect(object.has_path("b.c.d")).to be_truthy
-    expect(object.has_path("b.c")).to be_truthy
-    expect(object.has_path("b")).to be_truthy
+    expect(object.has_path?("foo")).to be_truthy
+    expect(object.has_path?("b.c.d")).to be_truthy
+    expect(object.has_path?("b.c")).to be_truthy
+    expect(object.has_path?("b")).to be_truthy
 
     # has_path is false for null values but contains_key is true
     expect(object.root["a"]).to eq(TestUtils.null_value)
     expect(object.root.has_key?("a")).to be_truthy
-    expect(object.has_path("a")).to be_falsey
+    expect(object.has_path?("a")).to be_falsey
 
     # false for totally absent values
     expect(object.root.has_key?("notinhere")).to be_falsey
-    expect(object.has_path("notinhere")).to be_falsey
+    expect(object.has_path?("notinhere")).to be_falsey
 
     # throws proper exceptions
-    expect { empty.has_path("a.") }.to raise_error(Hocon::ConfigError::ConfigBadPathError)
-    expect { empty.has_path("..") }.to raise_error(Hocon::ConfigError::ConfigBadPathError)
+    expect { empty.has_path?("a.") }.to raise_error(Hocon::ConfigError::ConfigBadPathError)
+    expect { empty.has_path?("..") }.to raise_error(Hocon::ConfigError::ConfigBadPathError)
   end
 end
 

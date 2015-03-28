@@ -8,6 +8,7 @@ require 'hocon/impl/simple_config_origin'
 require 'hocon/impl/simple_config_list'
 require 'hocon/impl/config_boolean'
 require 'hocon/impl/config_null'
+require 'hocon/impl/parseable'
 
 class Hocon::Impl::ConfigImpl
   @default_includer = Hocon::Impl::SimpleIncluder.new(nil)
@@ -25,6 +26,13 @@ class Hocon::Impl::ConfigImpl
     @default_includer
   end
 
+
+  class FileNameSource < Hocon::Impl::SimpleIncluder::NameSource
+    def name_to_parseable(name, parse_options)
+      Hocon::Impl::Parseable.new_file(name, parse_options)
+    end
+  end
+
   def self.improve_not_resolved(what, original)
     new_message = "#{what.render} has not been resolved, you need to call Config#resolve, see API docs for Config#resolve"
     if new_message == original.message
@@ -40,6 +48,13 @@ class Hocon::Impl::ConfigImpl
     else
       return Hocon::Impl::SimpleConfigOrigin.new_simple(origin_description)
     end
+  end
+
+  def self.parse_file_any_syntax(basename, base_options)
+    source = FileNameSource.new()
+    Hocon::Impl::SimpleIncluder.from_basename(source,
+                                              File.expand_path(basename),
+                                              base_options)
   end
 
   def self.empty_object(origin)

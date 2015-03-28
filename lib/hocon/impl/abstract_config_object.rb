@@ -106,7 +106,7 @@ module Hocon::Impl::AbstractConfigObject
       if path_next.nil?
         v
       else
-        if v.is_a?(AbstractConfigObject)
+        if v.is_a?(Hocon::Impl::AbstractConfigObject)
           peek_path_from_obj(v, path_next)
         else
           nil
